@@ -1,0 +1,31 @@
+name: Gerar Executável Windows
+
+on:
+  push:
+    branches:
+      - main # Dispara sempre que você enviar código para a branch main
+
+jobs:
+  release:
+    runs-on: windows-latest # Aqui está o segredo: roda em um Windows real
+
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # Versão estável do Node
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Criar o instalador .exe
+        run: npm run make:win
+
+      - name: Guardar o arquivo .exe gerado
+        uses: actions/upload-artifact@v4
+        with:
+          name: PraFood-Instalador-Windows
+          path: out/make/squirrel/win32/x64/*.exe
