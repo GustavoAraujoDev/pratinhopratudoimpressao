@@ -3,6 +3,9 @@ const findDevices = require("local-devices");
 const net = require("net");
 // 🔄 ALTERAÇÃO AQUI: Trocamos o escpos-network pelo escpos-usb
 escpos.USB = require("escpos-usb");
+const PDFDocument = require("pdfkit");
+
+const { print } = require("pdf-to-printer");
 
 class EpsonPrinterService {
   constructor() {
@@ -10,11 +13,12 @@ class EpsonPrinterService {
     this.printer = null;
     this.currentPrinterIp = null;
     this.isMock = false;
+    this.printerName = null;
+    this.isMock = false;
   }
 
-  // Dentro da classe EpsonPrinterService:
   setPrinterName(nome) {
-    this.printerName = nome; // Passa a usar o nome selecionado pelo usuário nas próximas impressões
+    this.printerName = nome;
   }
 
   /**
@@ -63,43 +67,51 @@ class EpsonPrinterService {
     });
   }
 
-  // 🔄 ALTERAÇÃO AQUI: Varredura de IP removida, entra a conexão USB direta
-  connectToPrinter() {
+  async connectToPrinter(getPrinters) {
     try {
-      if (this.printerName) {
-        console.log(
-          `[PRINTER] Tentando conectar na impressora: ${this.printerName}`,
-        );
+      if (!this.printerName) {
+        console.log("[PRINTER] Nenhuma impressora configurada.");
+        this.isMock = true;
 
-        // Se o nome contiver "0x", significa que passamos o par VendorID/ProductID do USB
-        if (this.printerName.includes("0x")) {
-          const [vid, pid] = this.printerName.split("_");
-          console.log(
-            `[PRINTER] Identificado mapeamento USB Direto - VID: ${vid}, PID: ${pid}`,
-          );
-          this.device = new escpos.USB(parseInt(vid, 16), parseInt(pid, 16));
-        } else {
-          // Fallback para mapeamento por nome de fila/driver (Comum no Windows)
-          this.device = new escpos.USB(this.printerName);
-        }
-      } else {
-        console.log(
-          "[PRINTER] Buscando qualquer dispositivo USB padrão conectado...",
-        );
-        this.device = new escpos.USB(); // Pega o primeiro dispositivo ESC/POS que responder na USB
+        return {
+          success: false,
+          error: "Nenhuma impressora configurada",
+        };
       }
 
-      this.printer = new escpos.Printer(this.device, { encoding: "CP860" });
-      this.isMock = false;
-      console.log("[PRINTER] Conectado com sucesso via hardware USB.");
-      return { success: true };
-    } catch (err) {
-      this.isMock = true;
-      console.error(
-        "[PRINTER_CONN_ERROR] Falha ao parear com o hardware USB. Entrando em Modo Mock.",
-        err.message,
+      const printers = await getPrinters();
+
+      const printerExists = printers.some((p) => p.name === this.printerName);
+
+      if (!printerExists) {
+        console.log(`[PRINTER] Impressora não encontrada: ${this.printerName}`);
+
+        this.isMock = true;
+
+        return {
+          success: false,
+          error: "Impressora não encontrada",
+        };
+      }
+
+      console.log(
+        `[PRINTER] Impressora validada com sucesso: ${this.printerName}`,
       );
-      return { success: false, error: err.message };
+
+      this.isMock = false;
+
+      return {
+        success: true,
+      };
+    } catch (err) {
+      console.error("[PRINTER_CONNECT_ERROR]", err);
+
+      this.isMock = true;
+
+      return {
+        success: false,
+        error: err.message,
+      };
     }
   }
 

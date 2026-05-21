@@ -36,13 +36,23 @@ function createWindow() {
     }
   }
 
-  mainWindow.webContents.on("did-finish-load", () => {
+  mainWindow.webContents.on("did-finish-load", async () => {
     console.log("[ELECTRON] Janela carregada. Verificando hardware inicial...");
-    const conexao = printerService.connectToPrinter();
-    mainWindow.webContents.send(
-      "status-mudou",
-      conexao.success ? "online" : "mock",
-    );
+
+    try {
+      const conexao = await printerService.connectToPrinter(async () => {
+        return await mainWindow.webContents.getPrintersAsync();
+      });
+
+      mainWindow.webContents.send(
+        "status-mudou",
+        conexao.success ? "online" : "mock",
+      );
+    } catch (err) {
+      console.error("[STARTUP_PRINTER_ERROR]", err);
+
+      mainWindow.webContents.send("status-mudou", "mock");
+    }
   });
 
   const socket = io("https://prafoodapi.onrender.com", {
@@ -53,9 +63,13 @@ function createWindow() {
     reconnectionDelay: 2000,
   });
 
-  socket.on("connect", () => {
+  socket.on("connect", async () => {
     console.log("Conectado na nuvem!");
-    const conexao = printerService.connectToPrinter();
+
+    const conexao = await printerService.connectToPrinter(async () => {
+      return await mainWindow.webContents.getPrintersAsync();
+    });
+
     mainWindow.webContents.send(
       "status-mudou",
       conexao.success ? "online" : "mock",
@@ -138,10 +152,14 @@ ipcMain.on("solicitar-teste-impressao", async () => {
   }
 });
 
-ipcMain.on("forcar-reconectar-usb", () => {
+ipcMain.on("forcar-reconectar-usb", async () => {
   console.log("➔ Botão de Forçar USB pressionado no HTML!");
+
   if (printerService) {
-    const conexao = printerService.connectToPrinter();
+    const conexao = await printerService.connectToPrinter(async () => {
+      return await mainWindow.webContents.getPrintersAsync();
+    });
+
     mainWindow.webContents.send(
       "status-mudou",
       conexao.success ? "online" : "mock",
@@ -194,10 +212,16 @@ ipcMain.on("buscar-lista-impressoras", async (event) => {
   );
 });
 
-ipcMain.on("configurar-impressora-ativa", (event, nomeImpressora) => {
+ipcMain.on("configurar-impressora-ativa", async (event, nomeImpressora) => {
   console.log(`📌 Usuário selecionou a impressora: ${nomeImpressora}`);
 
   try {
+    if (!nomeImpressora || nomeImpressora.trim() === "") {
+      mainWindow.webContents.send("status-mudou", "mock");
+
+      return;
+    }
+
     fs.writeFileSync(
       configPath,
       JSON.stringify({ printerName: nomeImpressora }),
@@ -207,12 +231,17 @@ ipcMain.on("configurar-impressora-ativa", (event, nomeImpressora) => {
       printerService.setPrinterName(nomeImpressora);
     }
 
-    const conexao = printerService.connectToPrinter();
+    const conexao = await printerService.connectToPrinter(async () => {
+      return await mainWindow.webContents.getPrintersAsync();
+    });
+
     mainWindow.webContents.send(
       "status-mudou",
       conexao.success ? "online" : "mock",
     );
   } catch (err) {
     console.error("[CONFIG_SAVE_ERROR]", err.message);
+
+    mainWindow.webContents.send("status-mudou", "mock");
   }
 });
