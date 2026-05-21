@@ -1,247 +1,380 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
-const { io } = require("socket.io-client");
-const EpsonPrinterService = require("./EpsonPrinterService");
 const fs = require("fs");
+const { io } = require("socket.io-client");
+
+const EpsonPrinterService = require("./EpsonPrinterService");
 
 let mainWindow;
+
 const printerService = new EpsonPrinterService();
+
 const configPath = path.join(app.getPath("userData"), "printer-config.json");
+
+// ======================================================
+// JANELA (VERSÃO CORRIGIDA)
+// ======================================================
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 450,
-    height: 450,
+    width: 800,
+    height: 800,
     resizable: false,
     autoHideMenuBar: true,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: true, // Mantido conforme sua configuração original
+      contextIsolation: false, // Mantido conforme sua configuração original
     },
   });
 
   mainWindow.loadFile(path.join(__dirname, "index.html"));
 
-  if (fs.existsSync(configPath)) {
-    try {
-      const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      if (
-        config.printerName &&
-        typeof printerService.setPrinterName === "function"
-      ) {
-        printerService.setPrinterName(config.printerName);
-      }
-    } catch (e) {
-      console.error("[CONFIG] Erro ao ler configuração inicial:", e);
-    }
-  }
+  // 💡 ADICIONE ESTA LINHA AQUI:
+  mainWindow.webContents.openDevTools();
 
+  // ======================================================
+  // LOGS E SINCRONIZAÇÃO INICIAL DE BOOT
+  // ======================================================
   mainWindow.webContents.on("did-finish-load", async () => {
-    console.log("[ELECTRON] Janela carregada. Verificando hardware inicial...");
+    console.log("✅ HTML carregado com sucesso");
 
-    try {
-      const conexao = await printerService.connectToPrinter(async () => {
-        return await mainWindow.webContents.getPrintersAsync();
-      });
+    // 1. Carrega as configurações salvas no JSON
+    await carregarConfiguracaoInicial();
 
-      mainWindow.webContents.send(
-        "status-mudou",
-        conexao.success ? "online" : "mock",
-      );
-    } catch (err) {
-      console.error("[STARTUP_PRINTER_ERROR]", err);
-
-      mainWindow.webContents.send("status-mudou", "mock");
-    }
+    // 2. Pequena pausa de 300ms para garantir que os listeners do HTML estão escutando
+    setTimeout(async () => {
+      console.log("🔄 Disparando varredura inicial de impressoras...");
+      await listarImpressorasInicial();
+    }, 300);
   });
 
+  // ======================================================
+  // SOCKET
+  // ======================================================
+  iniciarSocket();
+}
+
+// ======================================================
+// SOCKET.IO
+// ======================================================
+
+function iniciarSocket() {
   const socket = io("https://prafoodapi.onrender.com", {
     transports: ["websocket"],
     upgrade: false,
     forceNew: true,
+    reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 2000,
   });
 
-  socket.on("connect", async () => {
-    console.log("Conectado na nuvem!");
+  socket.on("connect", () => {
+    console.log("🟢 Conectado na nuvem");
 
-    const conexao = await printerService.connectToPrinter(async () => {
-      return await mainWindow.webContents.getPrintersAsync();
-    });
-
-    mainWindow.webContents.send(
-      "status-mudou",
-      conexao.success ? "online" : "mock",
-    );
+    enviarStatus("online");
   });
 
   socket.on("disconnect", () => {
-    mainWindow.webContents.send("status-mudou", "offline");
+    console.log("🔴 Desconectado da nuvem");
+
+    enviarStatus("offline");
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error("❌ SOCKET ERROR:", err.message);
+
+    enviarStatus("offline");
   });
 
   socket.on("imprimir-pedido", async (pedido) => {
-    console.log("Pedido recebido para impressão:", pedido?._id);
     try {
-      if (printerService) {
-        await printerService.imprimir(pedido);
-      } else {
-        throw new Error("Serviço de impressão não inicializado.");
-      }
-    } catch (error) {
-      console.error(
-        "[IMPRESSAO_ERRO] Falha ao imprimir pedido recebido da nuvem:",
-        error.message,
-      );
+      console.log("🖨️ Pedido recebido:", pedido?._id);
+      // 🔥 FORÇA A CONEXÃO ANTES DE IMPRIMIR PARA SAIR DO MODO MOCK
+      await printerService.connectToPrinter(obterImpressoras);
+      await printerService.imprimir(pedido);
+    } catch (err) {
+      console.error("[IMPRESSAO_ERRO]", err);
     }
   });
 }
 
+// ======================================================
+// STATUS
+// ======================================================
+
+function enviarStatus(status) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  mainWindow.webContents.send("status-mudou", status);
+}
+
+// ======================================================
+// CONFIGURAÇÃO INICIAL
+// ======================================================
+
+async function carregarConfiguracaoInicial() {
+  try {
+    if (!fs.existsSync(configPath)) {
+      console.log("⚠️ Nenhuma configuração salva");
+
+      return;
+    }
+
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+
+    if (config?.printerName) {
+      printerService.setPrinterName(config.printerName);
+
+      console.log(`🖨️ Impressora salva carregada: ${config.printerName}`);
+    }
+  } catch (err) {
+    console.error("[CONFIG_LOAD_ERROR]", err);
+  }
+}
+
+// ======================================================
+// LISTAR IMPRESSORAS (VERSÃO PREVENTIVA PARA MAC)
+// ======================================================
+async function obterImpressoras() {
+  try {
+    if (!mainWindow || mainWindow.isDestroyed()) return [];
+
+    console.log("[PRINTER] Solicitando impressoras ao sistema...");
+
+    // Criamos a promessa oficial do Electron
+    const printersPromise = mainWindow.webContents.getPrintersAsync();
+
+    // Criamos um timer de 2 segundos para o Mac não engasgar
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout OS Printer")), 2000),
+    );
+
+    // Corrida: quem responder primeiro ganha
+    const printers = await Promise.race([printersPromise, timeoutPromise]);
+
+    console.log("🖨️ Impressoras encontradas:", printers);
+    return printers || [];
+  } catch (err) {
+    // Se der timeout ou erro de hardware no Mac, assume lista vazia e segue jogo
+    console.error("[GET_PRINTERS_ERROR] Falha ou Timeout:", err.message);
+    return [];
+  }
+}
+
+async function listarImpressorasInicial() {
+  try {
+    const printers = await obterImpressoras();
+
+    let impressoraSalva = "";
+
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+
+        impressoraSalva = config?.printerName || "";
+      } catch (e) {
+        console.error("[CONFIG_READ_ERROR]", e);
+      }
+    }
+
+    mainWindow.webContents.send(
+      "lista-impressoras-resposta",
+      printers,
+      impressoraSalva,
+    );
+
+    // STATUS
+
+    if (printers.length === 0) {
+      console.log("⚠️ Nenhuma impressora encontrada");
+
+      enviarStatus("mock");
+
+      return;
+    }
+
+    enviarStatus("online");
+  } catch (err) {
+    console.error("[LISTAR_PRINTERS_ERROR]", err);
+
+    enviarStatus("offline");
+  }
+}
+
+// ======================================================
+// APP
+// ======================================================
+
 app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
 });
 
-// ==========================================
-// CANAIS DE COMUNICAÇÃO DOS BOTÕES (IPC)
-// ==========================================
+// ======================================================
+// TESTE DE IMPRESSÃO
+// ======================================================
 
-ipcMain.on("solicitar-teste-impressao", async () => {
-  console.log("➔ Botão de Teste pressionado no HTML!");
+ipcMain.on("solicitar-teste-impressao", async (event) => {
+  console.log("🧪 Teste solicitado pelo HTML");
 
   const pedidoTesteFake = {
-    id: "0000",
-    cliente: { nome: "FULANO DE TAL (TESTE)", telefone: "(85) 99999-9999" },
+    id: "9999",
+    cliente: {
+      nome: "CLIENTE TESTE",
+      telefone: "(85) 99999-9999",
+    },
     itens: [
       {
-        name: "Pizza Calabresa Grande",
-        quantity: 1,
-        unitPrice: 45.0,
-        extras: ["Borda de Catupiry"],
-        notes: "Sem cebola por favor.",
-      },
-      {
-        name: "Coca-Cola Zero 2L",
-        quantity: 1,
-        unitPrice: 9.0,
-        extras: [],
-        notes: "",
+        name: "X-BACON",
+        quantity: 2,
+        unitPrice: 25,
+        extras: ["CHEDDAR"],
+        notes: "Sem cebola",
       },
     ],
     pagamento: {
-      total: 54.0,
-      metodo: "CARTÃO DE CRÉDITO",
-      status: "PENDING",
-      trocoPara: 0,
+      total: 50,
+      metodo: "PIX",
+      status: "PAGO",
     },
     entrega: {
       tipo: "DELIVERY",
-      taxaEntrega: 5.0,
-      endereco: "Av. Beira Mar, 1234 - Apto 502, Meireles",
+      endereco: "Rua Teste 123",
     },
     createdAt: new Date().toISOString(),
   };
 
   try {
-    if (printerService) {
-      await printerService.imprimir(pedidoTesteFake);
+    // 💡 IMPORTANTE: Guardamos o retorno da função na variável 'resultado'
+    const resultado = await printerService.imprimir(pedidoTesteFake);
+
+    // Se o serviço retornou que é um mock e trouxe as linhas do cupom...
+    if (resultado && resultado.mock && resultado.linhas) {
+      console.log("\n🧾 [MAIN LOG] - EXIBINDO CUPOM GERADO NO TERMINAL:");
+
+      // Força o terminal a printar linha por linha para você ver o layout aqui!
+      resultado.linhas.forEach((linha) => {
+        console.log(linha);
+      });
+
+      console.log("==================================================\n");
+
+      // Envia também para o HTML (caso queira exibir em um alert na tela)
+      event.reply("cupom-simulado-render", resultado.linhas);
     }
+
+    console.log("✅ Impressão teste enviada");
   } catch (err) {
-    console.error("[ELECTRON_TEST_ERROR]", err.message);
+    console.error("[TEST_PRINT_ERROR]", err);
   }
 });
+
+// ======================================================
+// FORÇAR RECONEXÃO
+// ======================================================
 
 ipcMain.on("forcar-reconectar-usb", async () => {
-  console.log("➔ Botão de Forçar USB pressionado no HTML!");
+  console.log("🔄 Reconectando impressoras...");
 
-  if (printerService) {
-    const conexao = await printerService.connectToPrinter(async () => {
-      return await mainWindow.webContents.getPrintersAsync();
-    });
-
-    mainWindow.webContents.send(
-      "status-mudou",
-      conexao.success ? "online" : "mock",
-    );
-  }
+  await listarImpressorasInicial();
 });
 
-// 💡 Adicionamos o "async" antes de (event) para permitir o uso de await
+// ======================================================
+// BUSCAR LISTA
+// ======================================================
+// ======================================================
+// BUSCAR LISTA (ATUALIZADO)
+// ======================================================
 ipcMain.on("buscar-lista-impressoras", async (event) => {
-  let impressorasdoSistema = [];
-
   try {
-    // 🔑 O PADRÃO MODERNO COMERCIAL: Busca assíncrona blindada
-    if (event.sender && typeof event.sender.getPrintersAsync === "function") {
-      impressorasdoSistema = await event.sender.getPrintersAsync();
-    } else if (
-      mainWindow &&
-      mainWindow.webContents &&
-      typeof mainWindow.webContents.getPrintersAsync === "function"
-    ) {
-      impressorasdoSistema = await mainWindow.webContents.getPrintersAsync();
+    const printers = await obterImpressoras();
+    let impressoraSalva = "";
+
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+        impressoraSalva = config?.printerName || "";
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    console.log(
+      "📋 Enviando impressoras para HTML. Encontradas:",
+      printers.length,
+    );
+
+    // 1. Devolve o array (mesmo vazio) para popular o select
+    event.reply("lista-impressoras-resposta", printers, impressoraSalva);
+
+    // 2. Força o redirecionamento visual do status baseado no resultado real
+    if (!printers || printers.length === 0) {
+      console.log("🔄 Forçando estado do HTML para: mock");
+      enviarStatus("mock");
     } else {
-      // Fallback de segurança para versões antigas se tudo falhar
-      impressorasdoSistema = event.sender.getPrinters();
+      enviarStatus("online");
     }
   } catch (err) {
-    console.error(
-      "[PRINTER_LIST_ERROR] Erro ao varrer impressoras do SO:",
-      err.message,
-    );
-    impressorasdoSistema = []; // Evita que o app quebre se o SO bloquear a leitura
+    console.error("[IPC_PRINTER_LIST_ERROR]", err);
+    event.reply("lista-impressoras-resposta", [], "");
+    enviarStatus("offline");
   }
-
-  let configuradaAnteriormente = "";
-
-  if (fs.existsSync(configPath)) {
-    try {
-      const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      configuradaAnteriormente = config.printerName || "";
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  // Devolve a resposta para o HTML normalmente
-  event.reply(
-    "lista-impressoras-resposta",
-    impressorasdoSistema,
-    configuradaAnteriormente,
-  );
 });
 
-ipcMain.on("configurar-impressora-ativa", async (event, nomeImpressora) => {
-  console.log(`📌 Usuário selecionou a impressora: ${nomeImpressora}`);
+// ======================================================
+// DEFINIR IMPRESSORA
+// ======================================================
 
+ipcMain.on("configurar-impressora-ativa", async (event, nomeImpressora) => {
   try {
-    if (!nomeImpressora || nomeImpressora.trim() === "") {
-      mainWindow.webContents.send("status-mudou", "mock");
+    console.log("🖨️ Impressora selecionada:", nomeImpressora);
+
+    if (!nomeImpressora) {
+      enviarStatus("mock");
 
       return;
     }
 
+    // SALVAR
+
     fs.writeFileSync(
       configPath,
-      JSON.stringify({ printerName: nomeImpressora }),
+      JSON.stringify(
+        {
+          printerName: nomeImpressora,
+        },
+        null,
+        2,
+      ),
     );
 
-    if (printerService && typeof printerService.setPrinterName === "function") {
-      printerService.setPrinterName(nomeImpressora);
+    // SETAR
+
+    printerService.setPrinterName(nomeImpressora);
+
+    // VALIDAR
+
+    const printers = await obterImpressoras();
+
+    const exists = printers.some((printer) => printer.name === nomeImpressora);
+
+    if (!exists) {
+      console.log("❌ Impressora não encontrada");
+
+      enviarStatus("mock");
+
+      return;
     }
 
-    const conexao = await printerService.connectToPrinter(async () => {
-      return await mainWindow.webContents.getPrintersAsync();
-    });
+    console.log("✅ Impressora conectada");
 
-    mainWindow.webContents.send(
-      "status-mudou",
-      conexao.success ? "online" : "mock",
-    );
+    enviarStatus("online");
   } catch (err) {
-    console.error("[CONFIG_SAVE_ERROR]", err.message);
+    console.error("[SET_PRINTER_ERROR]", err);
 
-    mainWindow.webContents.send("status-mudou", "mock");
+    enviarStatus("offline");
   }
 });

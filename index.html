@@ -2,12 +2,13 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
+
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com data:;"
+      content="default-src 'self'; connect-src 'self' https://prafoodapi.onrender.com wss://prafoodapi.onrender.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com data:;"
     />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pratinhopratudo - Agente de Impressão</title>
 
     <link
@@ -17,118 +18,84 @@
 
     <style>
       * {
-        box-sizing: border-box;
         margin: 0;
         padding: 0;
+        box-sizing: border-box;
       }
 
       body {
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
           Arial, sans-serif;
-
         background: #f1f5f9;
         color: #1e293b;
-
-        padding: 24px;
-
-        display: flex;
-        justify-content: center;
-        align-items: center;
-
         height: 100vh;
-
-        -webkit-font-smoothing: antialiased;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        user-select: none; /* Evita que o operador selecione textos sem querer na tela do app */
       }
 
       .card {
-        background: #ffffff;
-
-        padding: 28px;
-
-        border-radius: 20px;
-
-        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.04);
-
         width: 100%;
-        max-width: 380px;
+        max-width: 390px;
+        background: white;
+        border-radius: 22px;
+        padding: 28px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
       }
 
       .header {
         text-align: center;
-        margin-bottom: 24px;
+        margin-bottom: 26px;
       }
 
-      .header h2 {
+      .header h1 {
+        font-size: 22px;
         color: #ef4444;
-
-        font-size: 20px;
-        font-weight: 700;
-
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 10px;
-
-        letter-spacing: -0.5px;
       }
 
       .header p {
-        font-size: 13px;
+        margin-top: 8px;
         color: #64748b;
-
-        margin-top: 6px;
+        font-size: 13px;
       }
 
-      .status-container {
+      .status-box {
         background: #f8fafc;
-
         border: 1px solid #e2e8f0;
-
-        border-radius: 14px;
-
-        padding: 16px;
-
-        margin-bottom: 20px;
-
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-
-        gap: 12px;
+        border-radius: 16px;
+        padding: 18px;
+        margin-bottom: 22px;
       }
 
-      .status-info h4 {
+      .status-title {
         font-size: 11px;
-
-        text-transform: uppercase;
-
         color: #94a3b8;
-
-        letter-spacing: 0.7px;
-
-        font-weight: 600;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
       }
 
       .status {
-        font-weight: 600;
-
-        font-size: 13px;
-
-        margin-top: 6px;
-
-        padding: 6px 12px;
-
-        border-radius: 20px;
-
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
       }
 
       .online {
-        background: #bbf7d0;
-        color: #15803d;
+        background: #dcfce7;
+        color: #166534;
       }
 
       .offline {
@@ -146,122 +113,71 @@
         color: #1d4ed8;
       }
 
-      .info-box {
-        background: #ffffff;
-
-        border: 1px solid #e2e8f0;
-
-        padding: 16px;
-
-        border-radius: 14px;
-
-        margin-bottom: 24px;
+      .form-box {
+        margin-bottom: 22px;
       }
 
-      .info-box span {
-        font-size: 11px;
-
-        text-transform: uppercase;
-
-        color: #94a3b8;
-
-        letter-spacing: 0.7px;
-
-        font-weight: 600;
-
+      .form-box label {
         display: block;
-
         margin-bottom: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #94a3b8;
       }
 
       .select-wrapper {
         position: relative;
-
-        display: flex;
-        align-items: center;
       }
 
       .select-wrapper i {
         position: absolute;
-
-        left: 12px;
-
+        top: 50%;
+        left: 14px;
+        transform: translateY(-50%);
         color: #64748b;
-
         font-size: 14px;
-
         pointer-events: none;
       }
 
       select {
         width: 100%;
-
-        padding: 10px 12px 10px 36px;
-
-        border-radius: 10px;
-
+        height: 46px;
+        border-radius: 12px;
         border: 1px solid #cbd5e1;
-
+        background: #f8fafc;
+        padding: 0 14px 0 40px;
         font-size: 13px;
         font-weight: 500;
-
-        color: #334155;
-
-        background-color: #f8fafc;
-
-        cursor: pointer;
-
-        transition: all 0.2s ease;
-
+        color: #1e293b;
+        outline: none;
         appearance: none;
-        -webkit-appearance: none;
-      }
-
-      .select-wrapper::after {
-        content: "\f078";
-
-        font-family: "Font Awesome 5 Free";
-
-        font-weight: 900;
-
-        font-size: 10px;
-
-        color: #64748b;
-
-        position: absolute;
-
-        right: 12px;
-
-        pointer-events: none;
+        cursor: pointer;
+        transition: 0.2s;
       }
 
       select:focus {
-        outline: none;
-
         border-color: #ef4444;
-
-        background-color: #ffffff;
-
-        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        background: white;
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.08);
       }
 
-      .btn {
+      .buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      button {
         width: 100%;
-
-        padding: 12px 16px;
-
+        height: 48px;
         border: none;
-
-        border-radius: 12px;
-
-        font-weight: 600;
-
-        font-size: 14px;
-
+        border-radius: 14px;
         cursor: pointer;
-
-        transition: all 0.2s ease;
-
+        font-size: 14px;
+        font-weight: 700;
+        transition: 0.2s;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -269,47 +185,38 @@
       }
 
       .btn-primary {
-        background: #1e293b;
-        color: #ffffff;
+        background: #0f172a;
+        color: white;
       }
 
       .btn-primary:hover {
-        background: #0f172a;
+        background: #020617;
       }
 
       .btn-secondary {
-        background: #ffffff;
-
-        color: #475569;
-
+        background: white;
         border: 1px solid #cbd5e1;
-
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        color: #334155;
       }
 
-      .btn-secondary:hover:not(:disabled) {
+      .btn-secondary:hover {
         background: #f8fafc;
-
-        border-color: #94a3b8;
-
-        color: #1e293b;
       }
 
-      .btn:disabled {
+      button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
 
-      .footer-note {
-        font-size: 11px;
-
-        color: #94a3b8;
-
+      .footer {
         margin-top: 20px;
-
         text-align: center;
+        color: #94a3b8;
+        font-size: 11px;
+      }
 
-        font-weight: 500;
+      .footer i {
+        margin-right: 4px;
       }
     </style>
   </head>
@@ -317,244 +224,226 @@
   <body>
     <div class="card">
       <div class="header">
-        <h2>
+        <h1>
           <i class="fas fa-utensils"></i>
           Pratinhopratudo
-        </h2>
-
-        <p>Ponte de Impressão Remota USB</p>
+        </h1>
+        <p>Ponte de Impressão Local (Windows)</p>
       </div>
 
-      <div class="status-container">
-        <div class="status-info">
-          <h4>Status do Agente</h4>
-
-          <div id="status-badge" class="status syncing">
-            <i class="fas fa-circle-notch fa-spin"></i>
-            Inicializando...
-          </div>
+      <div class="status-box">
+        <div class="status-title">Status do Agente</div>
+        <div id="status-badge" class="status syncing">
+          <i class="fas fa-circle-notch fa-spin"></i>
+          Inicializando...
         </div>
-
-        <button
-          id="btn-test"
-          class="btn btn-secondary"
-          style="
-            width: auto;
-            margin: 0;
-            padding: 8px 14px;
-            font-size: 12px;
-            border-radius: 8px;
-          "
-          disabled
-        >
-          <i class="fas fa-print"></i>
-          Testar
-        </button>
       </div>
 
-      <div class="info-box">
-        <span>Dispositivo de Saída</span>
-
+      <div class="form-box">
+        <label>Impressora instalada</label>
         <div class="select-wrapper">
           <i class="fas fa-print"></i>
-
           <select id="select-impressoras">
-            <option value="">Buscando impressoras...</option>
+            <option value="">Carregando impressoras...</option>
           </select>
         </div>
       </div>
 
-      <button id="btn-sync" class="btn btn-primary">
-        <i class="fas fa-sync-alt"></i>
-        Sincronizar Impressora
-      </button>
+      <div class="buttons">
+        <button id="btn-sync" class="btn-primary">
+          <i class="fas fa-sync-alt"></i>
+          <span>Atualizar Impressoras</span>
+        </button>
 
-      <p class="footer-note">
-        <i class="fas fa-lock" style="margin-right: 3px"></i>
+        <button id="btn-test" class="btn-secondary" disabled>
+          <i class="fas fa-print"></i>
+          <span>Imprimir Teste</span>
+        </button>
+      </div>
 
-        Mantenha este agente ativo em segundo plano.
-      </p>
+      <div class="footer">
+        <i class="fas fa-lock"></i>
+        Mantenha o agente aberto em segundo plano
+      </div>
     </div>
 
     <script>
       const { ipcRenderer } = require("electron");
 
       const selectImpressoras = document.getElementById("select-impressoras");
-
       const statusBadge = document.getElementById("status-badge");
-
+      const btnSync = document.getElementById("btn-sync");
       const btnTest = document.getElementById("btn-test");
 
-      const btnSync = document.getElementById("btn-sync");
-
-      // ======================================================
-      // CARREGAMENTO INICIAL
-      // ======================================================
-
       document.addEventListener("DOMContentLoaded", () => {
-        carregarListaImpressoras();
+        console.log(
+          "✅ HTML renderizado. Aguardando disparo do processo principal do Electron...",
+        );
       });
 
       // ======================================================
-      // LISTAR IMPRESSORAS
+      // RECEBER LISTA DO WINDOWS SPOOLER
       // ======================================================
-
-      async function carregarListaImpressoras() {
-        statusBadge.innerHTML =
-          '<i class="fas fa-sync fa-spin"></i> Sincronizando';
-
-        statusBadge.className = "status syncing";
-
-        ipcRenderer.send("buscar-lista-impressoras");
-      }
-
       ipcRenderer.on(
         "lista-impressoras-resposta",
-        (event, lista, salvaAnteriormente) => {
+        (event, lista, impressoraSalva) => {
+          console.log("🖨️ Lista de impressoras recebida pelo HTML:", lista);
+
+          // Restaura o estado visual original do botão de sincronização
+          restaurarBotaoSincronizar();
+
           selectImpressoras.innerHTML = "";
 
-          // SEGURANÇA
-          if (!Array.isArray(lista)) {
-            selectImpressoras.innerHTML =
-              '<option value="">Erro ao carregar</option>';
-
-            return;
-          }
-
-          // NENHUMA IMPRESSORA
-          if (lista.length === 0) {
-            selectImpressoras.innerHTML =
-              '<option value="">Nenhuma impressora instalada</option>';
-
-            ipcRenderer.send("status-mudou", "mock");
-
-            return;
-          }
-
-          // POPULA SELECT
-          lista.forEach((imp) => {
+          if (!Array.isArray(lista) || lista.length === 0) {
             const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "Nenhuma impressora encontrada";
+            selectImpressoras.appendChild(option);
 
-            option.value = imp.name;
+            atualizarVisualPagina("mock");
+            return;
+          }
 
-            option.textContent = imp.name + (imp.isDefault ? " (Padrão)" : "");
+          const defaultOpt = document.createElement("option");
+          defaultOpt.value = "";
+          defaultOpt.textContent = "-- Selecione uma impressora --";
+          selectImpressoras.appendChild(defaultOpt);
 
-            // RESTAURA CONFIGURAÇÃO ANTERIOR
-            if (salvaAnteriormente && imp.name === salvaAnteriormente) {
+          lista.forEach((printer) => {
+            const option = document.createElement("option");
+            option.value = printer.name;
+            option.textContent =
+              printer.name + (printer.isDefault ? " (Padrão do Windows)" : "");
+
+            if (impressoraSalva && printer.name === impressoraSalva) {
               option.selected = true;
             }
-
             selectImpressoras.appendChild(option);
           });
 
-          // CASO NÃO EXISTA IMPRESSORA SALVA
-          if (!salvaAnteriormente && selectImpressoras.options.length > 0) {
-            selectImpressoras.selectedIndex = 0;
-          }
-
-          // CONECTA SOMENTE NA IMPRESSORA SALVA
-          const impressoraSelecionada =
-            salvaAnteriormente || selectImpressoras.value;
-
-          if (impressoraSelecionada) {
-            ipcRenderer.send(
-              "configurar-impressora-ativa",
-              impressoraSelecionada,
-            );
+          if (selectImpressoras.value !== "") {
+            atualizarVisualPagina("online");
+          } else {
+            atualizarVisualPagina("mock");
           }
         },
       );
 
-      // ======================================================
-      // ALTERAÇÃO MANUAL
-      // ======================================================
-
-      selectImpressoras.addEventListener("change", () => {
-        const nomeImpressora = selectImpressoras.value;
-
-        if (!nomeImpressora) {
-          atualizarStatus("mock");
-          return;
-        }
-
-        statusBadge.innerHTML =
-          '<i class="fas fa-sync fa-spin"></i> Conectando';
-
-        statusBadge.className = "status syncing";
-
-        ipcRenderer.send("configurar-impressora-ativa", nomeImpressora);
+      // Escuta se a impressão de teste finalizou no backend para reativar o botão
+      ipcRenderer.on("teste-impressao-concluido", () => {
+        restaurarBotaoTeste();
       });
 
       // ======================================================
-      // STATUS
+      // ESCUTAR MUDANÇA DE STATUS DO SOCKET
       // ======================================================
-
       ipcRenderer.on("status-mudou", (event, status) => {
-        atualizarStatus(status);
+        console.log("🟢 Alteração de status da nuvem recebida:", status);
+        atualizarVisualPagina(status);
       });
 
-      function atualizarStatus(status) {
-        if (status === "online") {
-          statusBadge.innerHTML =
-            '<i class="fas fa-check-circle"></i> Online e Pronto';
+      // ======================================================
+      // SALVAR ALTERAÇÃO DE SELEÇÃO
+      // ======================================================
+      selectImpressoras.addEventListener("change", () => {
+        const nome = selectImpressoras.value;
+        // Rastreia a mudança de impressora
+        ipcRenderer.send("usuario-clicou", {
+          elemento: "select-impressora",
+          valor: nome,
+        });
+        ipcRenderer.send("configurar-impressora-ativa", nome);
+      });
 
-          statusBadge.className = "status online";
+      // ======================================================
+      // RENDERIZADOR VISUAL INTELIGENTE
+      // ======================================================
+      function atualizarVisualPagina(estado) {
+        if (!statusBadge) return;
 
-          btnTest.disabled = false;
-
-          return;
-        }
-
-        if (status === "mock") {
-          statusBadge.innerHTML = '<i class="fas fa-vial"></i> Modo Simulador';
-
+        if (
+          (estado === "online" || estado === "mock") &&
+          (!selectImpressoras || selectImpressoras.value === "")
+        ) {
           statusBadge.className = "status mock";
-
-          btnTest.disabled = false;
-
+          statusBadge.innerHTML = `<i class="fas fa-vial"></i> Modo simulador`;
+          if (btnTest) btnTest.disabled = false;
           return;
         }
 
-        statusBadge.innerHTML =
-          '<i class="fas fa-exclamation-triangle"></i> Fora de linha';
+        if (estado === "online") {
+          statusBadge.className = "status online";
+          statusBadge.innerHTML = `<i class="fas fa-check-circle"></i> Spooler Pronto`;
+          if (btnTest) btnTest.disabled = false;
+          return;
+        }
+
+        if (estado === "syncing") {
+          statusBadge.className = "status syncing";
+          statusBadge.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Atualizando...`;
+          if (btnTest) btnTest.disabled = true;
+          return;
+        }
 
         statusBadge.className = "status offline";
-
-        btnTest.disabled = true;
+        statusBadge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Desconectado`;
+        if (btnTest) btnTest.disabled = true;
       }
 
       // ======================================================
-      // TESTE
+      // INTERAÇÃO DOS BOTÕES (COM DETECÇÃO E BLOQUEIO DE UX)
       // ======================================================
-
       btnTest.addEventListener("click", () => {
+        // 1. Envia sinal de rastreamento pro processo Main do Electron
+        ipcRenderer.send("usuario-clicou", {
+          elemento: "btn-imprimir-teste",
+          impressoraSelecionada: selectImpressoras.value || "Nenhuma/Simulador",
+        });
+
+        // 2. Feedback visual: desabilita o botão e põe spinner de loading
+        btnTest.disabled = true;
+        btnTest.querySelector("i").className = "fas fa-circle-notch fa-spin";
+        btnTest.querySelector("span").textContent = "Imprimindo...";
+
+        // 3. Executa a ação real
         ipcRenderer.send("solicitar-teste-impressao");
+
+        // Segurança caso o backend não responda em 5 segundos, reativa o botão
+        setTimeout(restaurarBotaoTeste, 5000);
       });
 
-      // ======================================================
-      // SINCRONIZAR
-      // ======================================================
+      btnSync.addEventListener("click", () => {
+        // 1. Envia sinal de rastreamento pro processo Main do Electron
+        ipcRenderer.send("usuario-clicou", {
+          elemento: "btn-atualizar-impressoras",
+        });
 
-      btnSync.addEventListener("click", async () => {
+        // 2. Feedback visual
         btnSync.disabled = true;
+        btnSync.querySelector("i").className = "fas fa-circle-notch fa-spin";
+        btnSync.querySelector("span").textContent = "Buscando...";
 
-        btnSync.innerHTML =
-          '<i class="fas fa-circle-notch fa-spin"></i> Sincronizando';
-
-        statusBadge.innerHTML =
-          '<i class="fas fa-sync fa-spin"></i> Atualizando';
-
-        statusBadge.className = "status syncing";
-
-        ipcRenderer.send("forcar-reconectar-usb");
-
-        setTimeout(() => {
-          btnSync.disabled = false;
-
-          btnSync.innerHTML =
-            '<i class="fas fa-sync-alt"></i> Sincronizar Impressora';
-        }, 2000);
+        // 3. Executa a ação real
+        atualizarVisualPagina("syncing");
+        ipcRenderer.send("buscar-lista-impressoras");
       });
+
+      // Funções auxiliares para restaurar o estado dos botões
+      function restaurarBotaoTeste() {
+        if (!btnTest) return;
+        btnTest.disabled =
+          selectImpressoras.value === "" &&
+          statusBadge.className !== "status mock";
+        btnTest.querySelector("i").className = "fas fa-print";
+        btnTest.querySelector("span").textContent = "Imprimir Teste";
+      }
+
+      function restaurarBotaoSincronizar() {
+        if (!btnSync) return;
+        btnSync.disabled = false;
+        btnSync.querySelector("i").className = "fas fa-sync-alt";
+        btnSync.querySelector("span").textContent = "Atualizar Impressoras";
+      }
     </script>
   </body>
 </html>
