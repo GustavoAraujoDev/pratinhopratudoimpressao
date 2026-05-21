@@ -1,7 +1,8 @@
 {
   "name": "prafood-agente-impressao",
   "version": "1.0.0",
-  "Authors": "pratinhoPratudo",
+  "author": "pratinhoPratudo",
+  "authors": "pratinhoPratudo",
   "description": "Agente de Impressão Local PraFood",
   "main": "main.js",
   "scripts": {
