@@ -24,9 +24,7 @@
       }
 
       body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-          Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         background: #f1f5f9;
         color: #1e293b;
         height: 100vh;
@@ -34,21 +32,23 @@
         align-items: center;
         justify-content: center;
         padding: 24px;
-        user-select: none; /* Evita que o operador selecione textos sem querer na tela do app */
+        user-select: none;
       }
 
       .card {
         width: 100%;
-        max-width: 390px;
+        max-width: 420px; /* Aumentado levemente para melhor leitura espacial */
         background: white;
         border-radius: 22px;
-        padding: 28px;
+        padding: 24px;
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
       }
 
       .header {
         text-align: center;
-        margin-bottom: 26px;
       }
 
       .header h1 {
@@ -61,7 +61,7 @@
       }
 
       .header p {
-        margin-top: 8px;
+        margin-top: 6px;
         color: #64748b;
         font-size: 13px;
       }
@@ -70,8 +70,7 @@
         background: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 16px;
-        padding: 18px;
-        margin-bottom: 22px;
+        padding: 14px;
       }
 
       .status-title {
@@ -80,46 +79,27 @@
         font-weight: 700;
         letter-spacing: 1px;
         text-transform: uppercase;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
       }
 
       .status {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 8px 14px;
+        padding: 6px 12px;
         border-radius: 999px;
         font-size: 13px;
         font-weight: 600;
       }
 
-      .online {
-        background: #dcfce7;
-        color: #166534;
-      }
-
-      .offline {
-        background: #fee2e2;
-        color: #991b1b;
-      }
-
-      .mock {
-        background: #fef3c7;
-        color: #92400e;
-      }
-
-      .syncing {
-        background: #dbeafe;
-        color: #1d4ed8;
-      }
-
-      .form-box {
-        margin-bottom: 22px;
-      }
+      .online { background: #dcfce7; color: #166534; }
+      .offline { background: #fee2e2; color: #991b1b; }
+      .mock { background: #fef3c7; color: #92400e; }
+      .syncing { background: #dbeafe; color: #1d4ed8; }
 
       .form-box label {
         display: block;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
@@ -143,7 +123,7 @@
 
       select {
         width: 100%;
-        height: 46px;
+        height: 44px;
         border-radius: 12px;
         border: 1px solid #cbd5e1;
         background: #f8fafc;
@@ -166,16 +146,16 @@
       .buttons {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
       }
 
       button {
         width: 100%;
-        height: 48px;
+        height: 44px;
         border: none;
         border-radius: 14px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700;
         transition: 0.2s;
         display: flex;
@@ -184,39 +164,60 @@
         gap: 8px;
       }
 
-      .btn-primary {
+      .btn-primary { background: #0f172a; color: white; }
+      .btn-primary:hover { background: #020617; }
+      .btn-secondary { background: white; border: 1px solid #cbd5e1; color: #334155; }
+      .btn-secondary:hover { background: #f8fafc; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      /* ======================================================
+         CSS DO NOVO CONSOLE DE LOGS VISUAL
+         ====================================================== */
+      .console-title {
+        font-size: 11px;
+        color: #64748b;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      
+      .console-box {
+        width: 100%;
+        height: 160px;
         background: #0f172a;
-        color: white;
+        border-radius: 12px;
+        padding: 12px;
+        font-family: "Consolas", "Courier New", monospace;
+        font-size: 11px;
+        color: #38bdf8;
+        overflow-y: auto;
+        border: 1px solid #1e293b;
+        text-align: left;
+        user-select: text; /* Permite selecionar o texto do log para debugar se precisar */
       }
 
-      .btn-primary:hover {
-        background: #020617;
+      .log-line {
+        margin-bottom: 6px;
+        line-height: 1.4;
+        border-bottom: 1px dashed #1e293b;
+        padding-bottom: 4px;
+        word-break: break-all;
       }
-
-      .btn-secondary {
-        background: white;
-        border: 1px solid #cbd5e1;
-        color: #334155;
-      }
-
-      .btn-secondary:hover {
-        background: #f8fafc;
-      }
-
-      button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
+      
+      /* Cores temáticas para os tipos de log no terminal */
+      .log-line.erro { color: #f87171; }
+      .log-line.alerta { color: #fbbf24; }
+      .log-line.sucesso { color: #4ade80; }
+      .log-line.info { color: #38bdf8; }
 
       .footer {
-        margin-top: 20px;
         text-align: center;
         color: #94a3b8;
         font-size: 11px;
-      }
-
-      .footer i {
-        margin-right: 4px;
       }
     </style>
   </head>
@@ -261,6 +262,14 @@
         </button>
       </div>
 
+      <!-- NOVO COMPONENTE DE TERMINAL DE LOGS -->
+      <div class="console-title">
+        <i class="fas fa-terminal"></i> Console de Operações Local
+      </div>
+      <div id="console-logs" class="console-box">
+        <div class="log-line info">[SISTEMA] Aguardando inicialização do barramento IPC...</div>
+      </div>
+
       <div class="footer">
         <i class="fas fa-lock"></i>
         Mantenha o agente aberto em segundo plano
@@ -274,11 +283,37 @@
       const statusBadge = document.getElementById("status-badge");
       const btnSync = document.getElementById("btn-sync");
       const btnTest = document.getElementById("btn-test");
+      const consoleLogs = document.getElementById("console-logs");
+
+      // ======================================================
+      // FUNÇÃO PARA ADICIONAR LOG NA TELA (NOVA)
+      // ======================================================
+      function injetarLogNaTela(textoFormatado) {
+        if (!consoleLogs) return;
+
+        const novaLinha = document.createElement("div");
+        novaLinha.className = "log-line";
+
+        // Aplica cores com base nas palavras-chave do log do servidor
+        if (textoFormatado.includes("[ERRO]")) novaLinha.classList.add("erro");
+        else if (textoFormatado.includes("[ALERTA]")) novaLinha.classList.add("alerta");
+        else if (textoFormatado.includes("[SUCESSO]")) novaLinha.classList.add("sucesso");
+        else novaLinha.classList.add("info");
+
+        novaLinha.textContent = textoFormatado;
+        consoleLogs.appendChild(novaLinha);
+
+        // Auto-scroll para manter o log mais recente sempre visível
+        consoleLogs.scrollTop = consoleLogs.scrollHeight;
+      }
+
+      // Ouvinte para capturar logs enviados em tempo real pelo main.js
+      ipcRenderer.on("novo-log-servidor", (event, log) => {
+        injetarLogNaTela(log);
+      });
 
       document.addEventListener("DOMContentLoaded", () => {
-        console.log(
-          "✅ HTML renderizado. Aguardando disparo do processo principal do Electron...",
-        );
+        injetarLogNaTela(`[${new Date().toLocaleTimeString("pt-BR")}] [INFO] Interface gráfica montada no DOM.`);
       });
 
       // ======================================================
@@ -287,11 +322,7 @@
       ipcRenderer.on(
         "lista-impressoras-resposta",
         (event, lista, impressoraSalva) => {
-          console.log("🖨️ Lista de impressoras recebida pelo HTML:", lista);
-
-          // Restaura o estado visual original do botão de sincronização
           restaurarBotaoSincronizar();
-
           selectImpressoras.innerHTML = "";
 
           if (!Array.isArray(lista) || lista.length === 0) {
@@ -312,8 +343,7 @@
           lista.forEach((printer) => {
             const option = document.createElement("option");
             option.value = printer.name;
-            option.textContent =
-              printer.name + (printer.isDefault ? " (Padrão do Windows)" : "");
+            option.textContent = printer.name + (printer.isDefault ? " (Padrão do Windows)" : "");
 
             if (impressoraSalva && printer.name === impressoraSalva) {
               option.selected = true;
@@ -329,25 +359,25 @@
         },
       );
 
-      // Escuta se a impressão de teste finalizou no backend para reativar o botão
       ipcRenderer.on("teste-impressao-concluido", () => {
         restaurarBotaoTeste();
       });
 
-      // ======================================================
-      // ESCUTAR MUDANÇA DE STATUS DO SOCKET
-      // ======================================================
       ipcRenderer.on("status-mudou", (event, status) => {
-        console.log("🟢 Alteração de status da nuvem recebida:", status);
         atualizarVisualPagina(status);
       });
 
-      // ======================================================
-      // SALVAR ALTERAÇÃO DE SELEÇÃO
-      // ======================================================
+      // Se o backend enviar um cupom simulado, exibimos de forma legível no nosso console
+      ipcRenderer.on("cupom-simulado-render", (event, linhasCupom) => {
+        injetarLogNaTela("--- CONTEÚDO DO CUPOM SIMULADO ---");
+        linhasCupom.forEach(linha => {
+          if(linha.trim()) injetarLogNaTela(linha);
+        });
+        injetarLogNaTela("----------------------------------");
+      });
+
       selectImpressoras.addEventListener("change", () => {
         const nome = selectImpressoras.value;
-        // Rastreia a mudança de impressora
         ipcRenderer.send("usuario-clicou", {
           elemento: "select-impressora",
           valor: nome,
@@ -355,16 +385,10 @@
         ipcRenderer.send("configurar-impressora-ativa", nome);
       });
 
-      // ======================================================
-      // RENDERIZADOR VISUAL INTELIGENTE
-      // ======================================================
       function atualizarVisualPagina(estado) {
         if (!statusBadge) return;
 
-        if (
-          (estado === "online" || estado === "mock") &&
-          (!selectImpressoras || selectImpressoras.value === "")
-        ) {
+        if ((estado === "online" || estado === "mock") && (!selectImpressoras || selectImpressoras.value === "")) {
           statusBadge.className = "status mock";
           statusBadge.innerHTML = `<i class="fas fa-vial"></i> Modo simulador`;
           if (btnTest) btnTest.disabled = false;
@@ -390,50 +414,34 @@
         if (btnTest) btnTest.disabled = true;
       }
 
-      // ======================================================
-      // INTERAÇÃO DOS BOTÕES (COM DETECÇÃO E BLOQUEIO DE UX)
-      // ======================================================
       btnTest.addEventListener("click", () => {
-        // 1. Envia sinal de rastreamento pro processo Main do Electron
         ipcRenderer.send("usuario-clicou", {
           elemento: "btn-imprimir-teste",
           impressoraSelecionada: selectImpressoras.value || "Nenhuma/Simulador",
         });
 
-        // 2. Feedback visual: desabilita o botão e põe spinner de loading
         btnTest.disabled = true;
         btnTest.querySelector("i").className = "fas fa-circle-notch fa-spin";
         btnTest.querySelector("span").textContent = "Imprimindo...";
 
-        // 3. Executa a ação real
         ipcRenderer.send("solicitar-teste-impressao");
-
-        // Segurança caso o backend não responda em 5 segundos, reativa o botão
-        setTimeout(restaurarBotaoTeste, 5000);
+        setTimeout(restaurarBotaoTeste, 5500);
       });
 
       btnSync.addEventListener("click", () => {
-        // 1. Envia sinal de rastreamento pro processo Main do Electron
-        ipcRenderer.send("usuario-clicou", {
-          elemento: "btn-atualizar-impressoras",
-        });
+        ipcRenderer.send("usuario-clicou", { elemento: "btn-atualizar-impressoras" });
 
-        // 2. Feedback visual
         btnSync.disabled = true;
         btnSync.querySelector("i").className = "fas fa-circle-notch fa-spin";
         btnSync.querySelector("span").textContent = "Buscando...";
 
-        // 3. Executa a ação real
         atualizarVisualPagina("syncing");
         ipcRenderer.send("buscar-lista-impressoras");
       });
 
-      // Funções auxiliares para restaurar o estado dos botões
       function restaurarBotaoTeste() {
         if (!btnTest) return;
-        btnTest.disabled =
-          selectImpressoras.value === "" &&
-          statusBadge.className !== "status mock";
+        btnTest.disabled = selectImpressoras.value === "" && statusBadge.className !== "status mock";
         btnTest.querySelector("i").className = "fas fa-print";
         btnTest.querySelector("span").textContent = "Imprimir Teste";
       }
