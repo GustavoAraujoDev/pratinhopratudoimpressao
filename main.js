@@ -29,6 +29,9 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, "index.html"));
 
+    // Abre o console/devtools
+  mainWindow.webContents.openDevTools();
+
   // ======================================================
   // LOGS E SINCRONIZAÇÃO INICIAL DE BOOT
   // ======================================================
