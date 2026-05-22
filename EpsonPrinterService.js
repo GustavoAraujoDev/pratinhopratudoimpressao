@@ -4,6 +4,9 @@ escpos.USB = require("escpos-usb");
 const PDFDocument = require("pdfkit");
 const { print } = require("pdf-to-printer");
 
+const path = require("path");
+const fs = require("fs");
+
 class EpsonPrinterService {
   constructor() {
     this.device = null;
