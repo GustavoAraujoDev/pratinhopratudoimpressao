@@ -29,9 +29,6 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, "index.html"));
 
-  // 💡 ADICIONE ESTA LINHA AQUI:
-  mainWindow.webContents.openDevTools();
-
   // ======================================================
   // LOGS E SINCRONIZAÇÃO INICIAL DE BOOT
   // ======================================================
