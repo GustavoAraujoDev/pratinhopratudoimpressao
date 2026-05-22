@@ -1,9 +1,9 @@
 {
-  "name": "pratinhopratudo-agente-impressao",
+  "name": "Pratinhopratudo-agente-impressao",
   "version": "1.0.0",
   "author": "pratinhoPratudo",
   "authors": "pratinhoPratudo",
-  "description": "Agente de Impressão Local pratinhopratudo",
+  "description": "Agente de Impressão Local Pratinhopratudo",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -30,23 +30,24 @@
   "config": {
     "forge": {
       "packagerConfig": {
-        "name": "pratinhopratudo Impressor",
+        "name": "Pratinhopratudo Impressor",
         "asar": {
           "unpackDir": "**/node_modules/pdf-to-printer/**"
-        }
+        },
+        "icon": "./logo.jpeg"
       },
       "rebuildConfig": {},
       "makers": [
         {
           "name": "@electron-forge/maker-squirrel",
           "config": {
-            "name": "pratinhopratudo_agente_impressao"
+            "name": "Pratinhopratudo_agente_impressao"
           }
         },
         {
           "name": "@electron-forge/maker-dmg",
           "config": {
-            "name": "pratinhopratudo Impressor",
+            "name": "Pratinhopratudo Impressor",
             "overwrite": true
           }
         }
