@@ -32,7 +32,8 @@ class EpsonPrinterService {
   // CONECTAR IMPRESSORA WINDOWS (CORRIGIDO)
   // =========================================================
 
-  async connectToPrinter(printersList) { // Recebe a lista direto
+  async connectToPrinter(printersList) {
+    // Recebe a lista direto
     try {
       console.log("[PRINTER] Validando impressora...");
 
@@ -46,18 +47,25 @@ class EpsonPrinterService {
       // Se por acaso vier vazio ou não for array, evita quebrar o app
       const printers = Array.isArray(printersList) ? printersList : [];
 
-      console.log("[PRINTER] Lista de verificação recebida, tamanho:", printers.length);
+      console.log(
+        "[PRINTER] Lista de verificação recebida, tamanho:",
+        printers.length,
+      );
 
       const printerExists = printers.find((p) => p.name === this.printerName);
 
       if (!printerExists) {
-        console.log(`[PRINTER] Impressora não encontrada no Windows: ${this.printerName}`);
+        console.log(
+          `[PRINTER] Impressora não encontrada no Windows: ${this.printerName}`,
+        );
         this.isMock = true;
         this.isConnected = false;
         return { success: false, error: "Impressora não encontrada" };
       }
 
-      console.log(`[PRINTER] Hardware validado com sucesso: ${this.printerName}`);
+      console.log(
+        `[PRINTER] Hardware validado com sucesso: ${this.printerName}`,
+      );
 
       this.device = null;
       this.printer = null;
@@ -129,136 +137,153 @@ class EpsonPrinterService {
   // FORMATAR PEDIDO
   // =========================================================
 
-  formatarPedido(pedido) {
-    const LARGURA_MAX = 48;
+  // =========================================================
+  // FORMATAR PEDIDO (BLINDADO CONTRA UNDEFINED)
+  // =========================================================
 
+  formatarPedido(pedido) {
+    // Reduzido para 38 para caber perfeitamente na largura de 226pt do PDFKit
+    const LARGURA_MAX = 38;
     const linhas = [];
 
+    const p = pedido || {};
+
+    // ==========================================
+    // CABEÇALHO PROFISSIONAL (DADOS DA EMPRESA)
+    // ==========================================
     linhas.push(
       this._coluna("*** PRATINHO PRATUDO ***", LARGURA_MAX, "center"),
     );
-
-    linhas.push(this._coluna("CUPOM NÃO FISCAL", LARGURA_MAX, "center"));
-
-    linhas.push("-".repeat(LARGURA_MAX));
-
-    linhas.push(this._coluna(`PEDIDO #${pedido.id}`, LARGURA_MAX, "center"));
-
-    linhas.push("-".repeat(LARGURA_MAX));
-
-    // =====================================================
-    // CLIENTE
-    // =====================================================
-
-    linhas.push("CLIENTE:");
-
+    linhas.push(this._coluna("PRATINHO PRATUDO LTDA", LARGURA_MAX, "center"));
     linhas.push(
-      this._coluna(pedido?.cliente?.nome || "Não informado", LARGURA_MAX),
+      this._coluna("CNPJ: 57.678.701/0001-00", LARGURA_MAX, "center"),
     );
 
-    if (pedido?.cliente?.telefone) {
-      linhas.push(this._coluna(`Tel: ${pedido.cliente.telefone}`, LARGURA_MAX));
+    // Endereço do estabelecimento (quebrando em linhas dinamicamente caso seja longo)
+    const enderecoEmpresa =
+      "Rua Joaquim José da Silva, 1006, Vila Velha, Fortaleza - CE";
+    linhas.push(
+      ...this._ajustarTextoLongo(enderecoEmpresa, LARGURA_MAX, "", "center"),
+    );
+
+    linhas.push(
+      this._coluna("Tel/Whats: (85) 99192-4340", LARGURA_MAX, "center"),
+    );
+    linhas.push("-".repeat(LARGURA_MAX));
+    linhas.push(
+      this._coluna("DOCUMENTO AUXILIAR DE VENDA", LARGURA_MAX, "center"),
+    );
+    linhas.push(this._coluna("CUPOM NÃO FISCAL", LARGURA_MAX, "center"));
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    // Identificação do Pedido
+    linhas.push(
+      this._coluna(
+        `PEDIDO ID: ${p.id || p._id || "0000"}`,
+        LARGURA_MAX,
+        "center",
+      ),
+    );
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    // CLIENTE
+    linhas.push("CLIENTE:");
+    linhas.push(this._coluna(p.cliente?.nome || "Não informado", LARGURA_MAX));
+    if (p.cliente?.telefone) {
+      linhas.push(this._coluna(`Tel: ${p.cliente.telefone}`, LARGURA_MAX));
+    }
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    // ITENS
+    linhas.push("ITENS:");
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    const itens = Array.isArray(p.itens) ? p.itens : [];
+
+    if (itens.length === 0) {
+      linhas.push(this._coluna("(Nenhum item encontrado)", LARGURA_MAX));
     }
 
-    linhas.push("-".repeat(LARGURA_MAX));
-
-    // =====================================================
-    // ITENS
-    // =====================================================
-
-    linhas.push("ITENS:");
-
-    linhas.push("-".repeat(LARGURA_MAX));
-
-    (pedido.itens || []).forEach((item) => {
-      const nome = this._coluna((item.name || "").toUpperCase(), 28);
-
-      const qtd = this._coluna(`x${item.quantity}`, 5, "right");
-
-      const preco = this._coluna(
-        Number(item.unitPrice || 0).toFixed(2),
-        7,
+    itens.forEach((item) => {
+      // Ajuste de colunas para somar exatamente 38 caracteres:
+      // Nome (18) + Qtd (4) + Preço (8) + Total (8) = 38
+      const nomeItem = String(
+        item?.name || item?.nome || "ITEM SEM NOME",
+      ).toUpperCase();
+      const nome = this._coluna(nomeItem, 18);
+      const qtd = this._coluna(
+        `x${item?.quantity || item?.qtd || 1}`,
+        4,
         "right",
       );
 
-      const total = this._coluna(
-        (Number(item.unitPrice || 0) * Number(item.quantity || 0)).toFixed(2),
-        8,
-        "right",
-      );
+      const precoNum = Number(item?.unitPrice || item?.preco || 0);
+      const preco = this._coluna(precoNum.toFixed(2), 8, "right");
+
+      const totalNum = precoNum * Number(item?.quantity || item?.qtd || 1);
+      const total = this._coluna(totalNum.toFixed(2), 8, "right");
 
       linhas.push(`${nome}${qtd}${preco}${total}`);
 
       // EXTRAS
-
-      if (item.extras && item.extras.length > 0) {
+      if (item?.extras && item.extras.length > 0) {
         const textoExtras = item.extras.join(", ");
-
         linhas.push(
           ...this._ajustarTextoLongo(textoExtras, LARGURA_MAX, "  + "),
         );
       }
 
       // OBS
-
-      if (item.notes && item.notes.trim() !== "") {
+      if (item?.notes && item.notes.trim() !== "") {
         linhas.push(
           ...this._ajustarTextoLongo(item.notes, LARGURA_MAX, "  OBS: "),
+        );
+      }
+      if (item?.observacao && item.observacao.trim() !== "") {
+        linhas.push(
+          ...this._ajustarTextoLongo(item.observacao, LARGURA_MAX, "  OBS: "),
         );
       }
     });
 
     linhas.push("-".repeat(LARGURA_MAX));
 
-    // =====================================================
     // ENTREGA
-    // =====================================================
-
-    if (pedido.entrega) {
+    if (p.entrega) {
       linhas.push("ENTREGA:");
-
-      if (pedido.entrega.tipo === "DELIVERY") {
+      if (p.entrega.tipo === "DELIVERY") {
         linhas.push("Tipo: Delivery");
-
         const endereco =
-          pedido.entrega.endereco || pedido?.cliente?.endereco || "";
-
+          p.entrega.endereco || p.cliente?.endereco || "Não informado";
         linhas.push(...this._ajustarTextoLongo(endereco, LARGURA_MAX, "End: "));
       }
-
-      if (pedido.entrega.tipo === "PICKUP") {
+      if (p.entrega.tipo === "PICKUP") {
         linhas.push("Tipo: Retirada");
       }
-
-      if (pedido.entrega.tipo === "DINE_IN") {
-        linhas.push(`Mesa: ${pedido.entrega.mesa}`);
+      if (p.entrega.tipo === "DINE_IN") {
+        linhas.push(`Mesa: ${p.entrega.mesa || "Não informada"}`);
       }
-
       linhas.push("-".repeat(LARGURA_MAX));
     }
 
-    // =====================================================
     // PAGAMENTO
-    // =====================================================
-
-    if (pedido.pagamento) {
+    if (p.pagamento) {
       linhas.push("PAGAMENTO:");
-
       linhas.push(
-        `${pedido.pagamento.metodo || "Não informado"} (${pedido.pagamento.status || "PENDENTE"})`,
+        `${p.pagamento.metodo || "Não informado"} (${p.pagamento.status || "PENDENTE"})`,
       );
 
-      if (pedido.pagamento.trocoPara) {
+      if (p.pagamento.trocoPara) {
         linhas.push(
-          `Troco para: R$ ${Number(pedido.pagamento.trocoPara).toFixed(2)}`,
+          `Troco para: R$ ${Number(p.pagamento.trocoPara).toFixed(2)}`,
         );
       }
-
       linhas.push("-".repeat(LARGURA_MAX));
 
+      const totalPedido = Number(p.pagamento.total || p.total || 0);
       linhas.push(
         this._coluna(
-          `TOTAL: R$ ${Number(pedido.pagamento.total || 0).toFixed(2)}`,
+          `TOTAL: R$ ${totalPedido.toFixed(2)}`,
           LARGURA_MAX,
           "right",
         ),
@@ -267,20 +292,14 @@ class EpsonPrinterService {
 
     linhas.push("-".repeat(LARGURA_MAX));
 
-    const dataCriacao = pedido.createdAt
-      ? new Date(pedido.createdAt)
-      : new Date();
-
+    const dataCriacao = p.createdAt ? new Date(p.createdAt) : new Date();
     linhas.push(
       this._coluna(`Data: ${dataCriacao.toLocaleString("pt-BR")}`, LARGURA_MAX),
     );
-
     linhas.push("-".repeat(LARGURA_MAX));
-
     linhas.push(
       this._coluna("OBRIGADO PELA PREFERENCIA!", LARGURA_MAX, "center"),
     );
-
     linhas.push("\n\n");
 
     return linhas;
@@ -325,6 +344,10 @@ class EpsonPrinterService {
   // IMPRIMIR
   // =========================================================
 
+  // =========================================================
+  // IMPRIMIR (CORRIGIDO E ISOLADO PARA MAC/WINDOWS)
+  // =========================================================
+
   async imprimir(pedido) {
     try {
       const linhas = this.formatarPedido(pedido);
@@ -334,8 +357,6 @@ class EpsonPrinterService {
       // =====================================================
       if (this.isMock || !this.printerName) {
         console.log("\n🧪 ===== MOCK IMPRESSÃO (ENVIANDO PRO HTML) =====");
-
-        // Retornamos um objeto avisando que é mock e enviando o cupom estruturado
         return {
           success: true,
           mock: true,
@@ -344,63 +365,82 @@ class EpsonPrinterService {
       }
 
       // =====================================================
-      // WINDOWS SPOOLER
+      // WINDOWS SPOOLER - PREPARAÇÃO DO ARQUIVO
       // =====================================================
 
       const tempDir = require("os").tmpdir();
-
       const filePath = require("path").join(
         tempDir,
         `pedido-${Date.now()}.pdf`,
       );
 
-      // =====================================================
-      // GERAR PDF
-      // =====================================================
+      // Calculamos uma altura dinâmica baseada nas linhas reais do pedido
+      const alturaCalculada = Math.max(300, linhas.length * 12 + 40);
 
       const doc = new PDFDocument({
-        margin: 10,
-        size: [226, 1000],
+        margin: 5,
+        size: [226, alturaCalculada],
       });
 
       const stream = require("fs").createWriteStream(filePath);
-
       doc.pipe(stream);
 
-      doc.fontSize(9);
+      // Fonte monoespaçada para garantir o alinhamento das colunas no papel
+      doc.font("Courier").fontSize(8.5);
 
       linhas.forEach((linha) => {
-        doc.text(linha, {
-          align: "left",
-        });
+        const linhaLimpa = linha.replace(/\n/g, "");
+        doc.text(linhaLimpa);
       });
 
       doc.end();
 
-      // =====================================================
-      // AGUARDAR PDF
-      // =====================================================
-
-      await new Promise((resolve) => {
+      // Aguardar o PDF concluir a escrita em disco
+      await new Promise((resolve, reject) => {
         stream.on("finish", resolve);
+        stream.on("error", reject);
       });
 
       // =====================================================
-      // IMPRIMIR WINDOWS
+      // INTERCEPTADOR DE SISTEMA OPERACIONAL (MUITO CRUCIAL)
       // =====================================================
+      // Evita que a biblioteca 'pdf-to-printer' rode no Mac e estoure erro.
+      if (process.platform === "darwin") {
+        console.log(
+          `[PRINT_MAC_OS] Sucesso! PDF de cupom gerado em: ${filePath}`,
+        );
+        return { success: true };
+      }
 
-      console.log(`[PRINT] Enviando para impressora: ${this.printerName}`);
+      // =====================================================
+      // IMPRESSÃO FÍSICA (SÓ VAI RODAR NO WINDOWS DO CLIENTE)
+      // =====================================================
+      console.log(
+        `[PRINT] Enviando para impressora do Windows: ${this.printerName}`,
+      );
 
-      await print(filePath, {
-        printer: this.printerName,
-      });
+      try {
+        // Tentativa 1: Envia com configurações de redimensionamento para bobina térmica
+        await print(filePath, {
+          printer: this.printerName,
+          options: ["-print-settings", "noscale,shrink"],
+        });
+      } catch (printError) {
+        console.warn(
+          "[PRINT_WARN] Driver do cliente rejeitou parâmetros. Tentando envio bruto...",
+          printError,
+        );
 
-      console.log("[PRINT] Impressão enviada com sucesso!");
+        // Tentativa 2 (Fallback): Se o driver antigo dele falhar com argumentos, envia o PDF cru
+        await print(filePath, {
+          printer: this.printerName,
+        });
+      }
 
-      return true;
+      console.log("[PRINT] Impressão enviada com sucesso ao spooler!");
+      return { success: true };
     } catch (err) {
       console.error("[PRINT_ERROR]", err);
-
       throw err;
     }
   }
