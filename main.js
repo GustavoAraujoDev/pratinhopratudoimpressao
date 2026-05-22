@@ -227,6 +227,10 @@ app.on("window-all-closed", () => {
 // TESTE DE IMPRESSÃO
 // ======================================================
 
+// ======================================================
+// TESTE DE IMPRESSÃO (VERSÃO 100% GARANTIDA)
+// ======================================================
+
 ipcMain.on("solicitar-teste-impressao", async (event) => {
   console.log("🧪 Teste solicitado pelo HTML");
 
@@ -258,32 +262,37 @@ ipcMain.on("solicitar-teste-impressao", async (event) => {
   };
 
   try {
+    // 1. Busca a lista física de hardware do Windows
     const printers = await obterImpressoras();
 
+    // 2. 🔥 ANTES DE CONECTAR: Garante que o service sabe qual impressora ler do arquivo
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      if (config?.printerName) {
+        printerService.setPrinterName(config.printerName);
+      }
+    }
+
+    // 3. Conecta passando o array corrigido (agora sai do modo mock com sucesso)
     await printerService.connectToPrinter(printers);
 
+    // 4. Executa a geração do PDF e envio ao spooler do Windows
     const resultado = await printerService.imprimir(pedidoTesteFake);
 
     if (resultado && resultado.mock && resultado.linhas) {
-      console.log("\n🧾 [MAIN LOG] - EXIBINDO CUPOM GERADO NO TERMINAL:");
-
+      console.log("\n🧾 [MAIN LOG] - EXIBINDO CUPOM GERADO NO TERMINAL (Modo Mock ativo):");
       resultado.linhas.forEach((linha) => {
         console.log(linha);
       });
-
       console.log("==================================================\n");
 
       event.reply("cupom-simulado-render", resultado.linhas);
     }
 
-    console.log("✅ Impressão teste enviada");
-
-    // 🔥 importante
+    console.log("✅ Impressão teste processada");
     event.reply("teste-impressao-concluido");
   } catch (err) {
     console.error("[TEST_PRINT_ERROR]", err);
-
-    // 🔥 importante
     event.reply("teste-impressao-concluido");
   }
 });
