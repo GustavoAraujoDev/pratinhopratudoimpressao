@@ -133,24 +133,14 @@ class EpsonPrinterService {
     return linhas;
   }
 
+ // =========================================================
+  // FORMATAR PEDIDO (ENTREGA ABAIXO DO CLIENTE)
   // =========================================================
-  // FORMATAR PEDIDO
-  // =========================================================
-
-  // =========================================================
-  // FORMATAR PEDIDO (BLINDADO CONTRA UNDEFINED)
-  // =========================================================
-
   formatarPedido(pedido) {
-    // Reduzido para 38 para caber perfeitamente na largura de 226pt do PDFKit
     const LARGURA_MAX = 38;
     const linhas = [];
-
     const p = pedido || {};
 
-    // ==========================================
-    // CABEÇALHO PROFISSIONAL (DADOS DA EMPRESA)
-    // ==========================================
     linhas.push(
       this._coluna("*** PRATINHO PRATUDO ***", LARGURA_MAX, "center"),
     );
@@ -159,12 +149,9 @@ class EpsonPrinterService {
       this._coluna("CNPJ: 57.678.701/0001-00", LARGURA_MAX, "center"),
     );
 
-    // Endereço do estabelecimento (quebrando em linhas dinamicamente caso seja longo)
     const enderecoEmpresa =
       "Rua Joaquim José da Silva, 1006, Vila Velha, Fortaleza - CE";
-    linhas.push(
-      ...this._ajustarTextoLongo(enderecoEmpresa, LARGURA_MAX, "", "center"),
-    );
+    linhas.push(...this._ajustarTextoLongo(enderecoEmpresa, LARGURA_MAX, ""));
 
     linhas.push(
       this._coluna("Tel/Whats: (85) 99192-4340", LARGURA_MAX, "center"),
@@ -176,7 +163,6 @@ class EpsonPrinterService {
     linhas.push(this._coluna("CUPOM NÃO FISCAL", LARGURA_MAX, "center"));
     linhas.push("-".repeat(LARGURA_MAX));
 
-    // Identificação do Pedido
     linhas.push(
       this._coluna(
         `PEDIDO ID: ${p.id || p._id || "0000"}`,
@@ -194,61 +180,7 @@ class EpsonPrinterService {
     }
     linhas.push("-".repeat(LARGURA_MAX));
 
-    // ITENS
-    linhas.push("ITENS:");
-    linhas.push("-".repeat(LARGURA_MAX));
-
-    const itens = Array.isArray(p.itens) ? p.itens : [];
-
-    if (itens.length === 0) {
-      linhas.push(this._coluna("(Nenhum item encontrado)", LARGURA_MAX));
-    }
-
-    itens.forEach((item) => {
-      // Ajuste de colunas para somar exatamente 38 caracteres:
-      // Nome (18) + Qtd (4) + Preço (8) + Total (8) = 38
-      const nomeItem = String(
-        item?.name || item?.nome || "ITEM SEM NOME",
-      ).toUpperCase();
-      const nome = this._coluna(nomeItem, 18);
-      const qtd = this._coluna(
-        `x${item?.quantity || item?.qtd || 1}`,
-        4,
-        "right",
-      );
-
-      const precoNum = Number(item?.unitPrice || item?.preco || 0);
-      const preco = this._coluna(precoNum.toFixed(2), 8, "right");
-
-      const totalNum = precoNum * Number(item?.quantity || item?.qtd || 1);
-      const total = this._coluna(totalNum.toFixed(2), 8, "right");
-
-      linhas.push(`${nome}${qtd}${preco}${total}`);
-
-      // EXTRAS
-      if (item?.extras && item.extras.length > 0) {
-        const textoExtras = item.extras.join(", ");
-        linhas.push(
-          ...this._ajustarTextoLongo(textoExtras, LARGURA_MAX, "  + "),
-        );
-      }
-
-      // OBS
-      if (item?.notes && item.notes.trim() !== "") {
-        linhas.push(
-          ...this._ajustarTextoLongo(item.notes, LARGURA_MAX, "  OBS: "),
-        );
-      }
-      if (item?.observacao && item.observacao.trim() !== "") {
-        linhas.push(
-          ...this._ajustarTextoLongo(item.observacao, LARGURA_MAX, "  OBS: "),
-        );
-      }
-    });
-
-    linhas.push("-".repeat(LARGURA_MAX));
-
-    // ENTREGA
+    // 🔥 MOVIMENTADO: Bloco de Entrega com Endereço agora fica logo abaixo do Cliente
     if (p.entrega) {
       linhas.push("ENTREGA:");
       if (p.entrega.tipo === "DELIVERY") {
@@ -266,6 +198,53 @@ class EpsonPrinterService {
       linhas.push("-".repeat(LARGURA_MAX));
     }
 
+    // ITENS
+    linhas.push("ITENS:");
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    const itens = Array.isArray(p.itens) ? p.itens : [];
+    if (itens.length === 0) {
+      linhas.push(this._coluna("(Nenhum item encontrado)", LARGURA_MAX));
+    }
+
+    itens.forEach((item) => {
+      const nomeItem = String(
+        item?.name || item?.nome || "ITEM SEM NOME",
+      ).toUpperCase();
+      const nome = this._coluna(nomeItem, 18);
+      const qtd = this._coluna(
+        `x${item?.quantity || item?.qtd || 1}`,
+        4,
+        "right",
+      );
+      const precoNum = Number(item?.unitPrice || item?.preco || 0);
+      const preco = this._coluna(precoNum.toFixed(2), 8, "right");
+      const totalNum = precoNum * Number(item?.quantity || item?.qtd || 1);
+      const total = this._coluna(totalNum.toFixed(2), 8, "right");
+
+      linhas.push(`${nome}${qtd}${preco}${total}`);
+
+      if (item?.extras && item.extras.length > 0) {
+        const textoExtras = item.extras.join(", ");
+        linhas.push(
+          ...this._ajustarTextoLongo(textoExtras, LARGURA_MAX, "  + "),
+        );
+      }
+
+      if (item?.notes && item.notes.trim() !== "") {
+        linhas.push(
+          ...this._ajustarTextoLongo(item.notes, LARGURA_MAX, "  OBS: "),
+        );
+      }
+      if (item?.observacao && item.observacao.trim() !== "") {
+        linhas.push(
+          ...this._ajustarTextoLongo(item.observacao, LARGURA_MAX, "  OBS: "),
+        );
+      }
+    });
+
+    linhas.push("-".repeat(LARGURA_MAX));
+
     // PAGAMENTO
     if (p.pagamento) {
       linhas.push("PAGAMENTO:");
@@ -278,6 +257,21 @@ class EpsonPrinterService {
           `Troco para: R$ ${Number(p.pagamento.trocoPara).toFixed(2)}`,
         );
       }
+
+      if (
+        p.entrega?.tipo === "DELIVERY" &&
+        p.entrega?.taxaEntrega !== undefined
+      ) {
+        const taxaNum = Number(p.entrega.taxaEntrega || 0);
+        linhas.push(
+          this._coluna(
+            `TAXA ENTREGA: R$ ${taxaNum.toFixed(2)}`,
+            LARGURA_MAX,
+            "right",
+          ),
+        );
+      }
+
       linhas.push("-".repeat(LARGURA_MAX));
 
       const totalPedido = Number(p.pagamento.total || p.total || 0);
@@ -300,22 +294,14 @@ class EpsonPrinterService {
     linhas.push(
       this._coluna("OBRIGADO PELA PREFERENCIA!", LARGURA_MAX, "center"),
     );
-    linhas.push("\n\n");
 
     return linhas;
   }
 
-  // =========================================================
-  // TESTE DE IMPRESSÃO
-  // =========================================================
-
   async testPrint() {
     const pedidoTeste = {
       id: "9999",
-      cliente: {
-        nome: "CLIENTE TESTE",
-        telefone: "(85) 99999-9999",
-      },
+      cliente: { nome: "CLIENTE TESTE", telefone: "(85) 99999-9999" },
       itens: [
         {
           name: "X-BACON",
@@ -325,86 +311,84 @@ class EpsonPrinterService {
           notes: "Sem cebola",
         },
       ],
-      pagamento: {
-        total: 50,
-        metodo: "PIX",
-        status: "PAGO",
-      },
-      entrega: {
-        tipo: "DELIVERY",
-        endereco: "Rua Teste 123",
-      },
+      pagamento: { total: 53, metodo: "PIX", status: "PAGO" },
+      entrega: { tipo: "DELIVERY", endereco: "Rua Teste 123", taxaEntrega: 3 },
       createdAt: new Date().toISOString(),
     };
-
     return this.imprimir(pedidoTeste);
   }
 
   // =========================================================
-  // IMPRIMIR
+  // IMPRIMIR (TODO EM NEGRITO COURIER-BOLD)
   // =========================================================
-
   // =========================================================
-  // IMPRIMIR (CORRIGIDO E ISOLADO PARA MAC/WINDOWS)
+  // IMPRIMIR (CORRIGIDO: ELIMINA ESPAÇO EM BRANCO NO COMEÇO)
   // =========================================================
-
+  // =========================================================
+  // IMPRIMIR (CORRIGIDO: FORÇA PÁGINA ÚNICA SEM QUEBRA)
+  // =========================================================
   async imprimir(pedido) {
     try {
       const linhas = this.formatarPedido(pedido);
 
-      // =====================================================
-      // MOCK (RETORNA AS LINHAS PARA O BACKEND ENVIAR PRO HTML)
-      // =====================================================
       if (this.isMock || !this.printerName) {
         console.log("\n🧪 ===== MOCK IMPRESSÃO (ENVIANDO PRO HTML) =====");
-        return {
-          success: true,
-          mock: true,
-          linhas: linhas,
-        };
+        return { success: true, mock: true, linhas: linhas };
       }
 
-      // =====================================================
-      // WINDOWS SPOOLER - PREPARAÇÃO DO ARQUIVO
-      // =====================================================
-
       const tempDir = require("os").tmpdir();
-      const filePath = require("path").join(
-        tempDir,
-        `pedido-${Date.now()}.pdf`,
-      );
+      const filePath = path.join(tempDir, `pedido-${Date.now()}.pdf`);
 
-      // Calculamos uma altura dinâmica baseada nas linhas reais do pedido
-      const alturaCalculada = Math.max(300, linhas.length * 12 + 40);
+      const logoPath = path.join(__dirname, "logo.png");
+      const temLogo = fs.existsSync(logoPath);
+
+      const espacoLogo = temLogo ? 75 : 0;
+
+      // 🔥 CORREÇÃO DA ALTURA: Aumentamos ligeiramente o multiplicador por linha (de 10 para 12)
+      // e adicionamos uma margem de segurança de 30px no final para o papel respirar antes do corte.
+      const alturaCalculada = linhas.length * 12 + espacoLogo + 30;
 
       const doc = new PDFDocument({
-        margin: 5,
+        margin: 0,
         size: [226, alturaCalculada],
+        autoFirstPage: false, // 🔥 IMPEDE O PDFKIT DE CRIAR PÁGINAS AUTOMÁTICAS
       });
 
-      const stream = require("fs").createWriteStream(filePath);
+      // Criamos a página manualmente vinculada ao tamanho exato calculado
+      doc.addPage({ margin: 0, size: [226, alturaCalculada] });
+
+      const stream = fs.createWriteStream(filePath);
       doc.pipe(stream);
 
-      // Fonte monoespaçada para garantir o alinhamento das colunas no papel
-      doc.font("Courier").fontSize(8.5);
+      // 1. RENDERIZAR LOGO (Se o arquivo existir)
+      let inicioTextoY = 2;
+      if (temLogo) {
+        doc.image(logoPath, (226 - 70) / 2, 2, { width: 70 });
+        inicioTextoY = 75; // Garante que o texto comece bem abaixo da logo
+      }
 
+      // 2. RENDERIZAR TEXTOS DO CUPOM (Tudo em Courier-Bold)
+      doc.font("Courier-Bold").fontSize(8.5);
+
+      let primeiraLinha = true;
       linhas.forEach((linha) => {
         const linhaLimpa = linha.replace(/\n/g, "");
-        doc.text(linhaLimpa);
+
+        if (primeiraLinha) {
+          doc.text(linhaLimpa, 5, inicioTextoY, { lineGap: 1.5 });
+          primeiraLinha = false;
+        } else {
+          doc.text(linhaLimpa, 5, doc.y, { lineGap: 1.5 });
+        }
       });
 
       doc.end();
 
-      // Aguardar o PDF concluir a escrita em disco
       await new Promise((resolve, reject) => {
         stream.on("finish", resolve);
         stream.on("error", reject);
       });
 
-      // =====================================================
-      // INTERCEPTADOR DE SISTEMA OPERACIONAL (MUITO CRUCIAL)
-      // =====================================================
-      // Evita que a biblioteca 'pdf-to-printer' rode no Mac e estoure erro.
       if (process.platform === "darwin") {
         console.log(
           `[PRINT_MAC_OS] Sucesso! PDF de cupom gerado em: ${filePath}`,
@@ -412,29 +396,22 @@ class EpsonPrinterService {
         return { success: true };
       }
 
-      // =====================================================
-      // IMPRESSÃO FÍSICA (SÓ VAI RODAR NO WINDOWS DO CLIENTE)
-      // =====================================================
       console.log(
         `[PRINT] Enviando para impressora do Windows: ${this.printerName}`,
       );
 
       try {
-        // Tentativa 1: Envia com configurações de redimensionamento para bobina térmica
+        // "nosplit" diz ao Windows: "Não quebre isso em duas páginas de jeito nenhum!"
         await print(filePath, {
           printer: this.printerName,
-          options: ["-print-settings", "noscale,shrink"],
+          options: ["-print-settings", "noscale,nosplit,monochrome"],
         });
       } catch (printError) {
         console.warn(
-          "[PRINT_WARN] Driver do cliente rejeitou parâmetros. Tentando envio bruto...",
+          "[PRINT_WARN] Falha nos parâmetros avançados. Usando envio limpo...",
           printError,
         );
-
-        // Tentativa 2 (Fallback): Se o driver antigo dele falhar com argumentos, envia o PDF cru
-        await print(filePath, {
-          printer: this.printerName,
-        });
+        await print(filePath, { printer: this.printerName });
       }
 
       console.log("[PRINT] Impressão enviada com sucesso ao spooler!");
