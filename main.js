@@ -88,9 +88,18 @@ function iniciarSocket() {
 
   socket.on("imprimir-pedido", async (pedido) => {
     try {
-      console.log("🖨️ Pedido recebido:", pedido?._id);
-      // 🔥 FORÇA A CONEXÃO ANTES DE IMPRIMIR PARA SAIR DO MODO MOCK
-      const printers = await obterImpressoras();
+      console.log("🖨️ Pedido recebido da nuvem:", pedido?._id);
+      
+      // 1. Pega o array de impressoras do Windows
+      const printers = await obterImpressoras(); 
+      
+      // 2. Passa o nome para garantir que o service está atualizado
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+        if (config?.printerName) printerService.setPrinterName(config.printerName);
+      }
+
+      // 3. Conecta passando o array tratado
       await printerService.connectToPrinter(printers);
       await printerService.imprimir(pedido);
     } catch (err) {
