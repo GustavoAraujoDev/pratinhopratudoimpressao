@@ -28,71 +28,48 @@ class EpsonPrinterService {
   // CONECTAR IMPRESSORA WINDOWS
   // =========================================================
 
-  async connectToPrinter(getPrinters) {
+  // =========================================================
+  // CONECTAR IMPRESSORA WINDOWS (CORRIGIDO)
+  // =========================================================
+
+  async connectToPrinter(printersList) { // Recebe a lista direto
     try {
       console.log("[PRINTER] Validando impressora...");
 
       if (!this.printerName) {
         console.log("[PRINTER] Nenhuma impressora configurada.");
-
         this.isMock = true;
         this.isConnected = false;
-
-        return {
-          success: false,
-          error: "Nenhuma impressora configurada",
-        };
+        return { success: false, error: "Nenhuma impressora configurada" };
       }
 
-      const printers = await getPrinters();
+      // Se por acaso vier vazio ou não for array, evita quebrar o app
+      const printers = Array.isArray(printersList) ? printersList : [];
 
-      console.log("[PRINTER] Impressoras encontradas:");
-      console.log(printers);
-
-      if (!Array.isArray(printers)) {
-        throw new Error("Lista de impressoras inválida");
-      }
+      console.log("[PRINTER] Lista de verificação recebida, tamanho:", printers.length);
 
       const printerExists = printers.find((p) => p.name === this.printerName);
 
       if (!printerExists) {
-        console.log(`[PRINTER] Impressora não encontrada: ${this.printerName}`);
-
+        console.log(`[PRINTER] Impressora não encontrada no Windows: ${this.printerName}`);
         this.isMock = true;
         this.isConnected = false;
-
-        return {
-          success: false,
-          error: "Impressora não encontrada",
-        };
+        return { success: false, error: "Impressora não encontrada" };
       }
 
-      console.log(`[PRINTER] Impressora conectada: ${this.printerName}`);
-
-      // =====================================================
-      // IMPORTANTE:
-      // NÃO usamos escpos-usb no Windows spooler
-      // =====================================================
+      console.log(`[PRINTER] Hardware validado com sucesso: ${this.printerName}`);
 
       this.device = null;
       this.printer = null;
-
-      this.isMock = false;
+      this.isMock = false; // 🔥 AGORA SAI DO MODO MOCK COM SUCESSO
       this.isConnected = true;
 
-      return {
-        success: true,
-      };
+      return { success: true };
     } catch (err) {
       console.error("[PRINTER_CONNECT_ERROR]", err);
-
       this.isMock = true;
       this.isConnected = false;
-
-      return {
-        success: false,
-        error: err.message,
-      };
+      return { success: false, error: err.message };
     }
   }
 
