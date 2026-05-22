@@ -1,9 +1,9 @@
 {
-  "name": "prafood-agente-impressao",
+  "name": "pratinhopratudo-agente-impressao",
   "version": "1.0.0",
   "author": "pratinhoPratudo",
   "authors": "pratinhoPratudo",
-  "description": "Agente de Impressão Local PraFood",
+  "description": "Agente de Impressão Local pratinhopratudo",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -30,7 +30,7 @@
   "config": {
     "forge": {
       "packagerConfig": {
-        "name": "PraFood Impressor",
+        "name": "pratinhopratudo Impressor",
         "asar": {
           "unpackDir": "**/node_modules/pdf-to-printer/**"
         }
@@ -40,13 +40,13 @@
         {
           "name": "@electron-forge/maker-squirrel",
           "config": {
-            "name": "prafood_agente_impressao"
+            "name": "pratinhopratudo_agente_impressao"
           }
         },
         {
           "name": "@electron-forge/maker-dmg",
           "config": {
-            "name": "PraFood Impressor",
+            "name": "pratinhopratudo Impressor",
             "overwrite": true
           }
         }
