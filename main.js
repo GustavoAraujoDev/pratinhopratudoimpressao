@@ -54,7 +54,7 @@ function createWindow() {
 }
 
 function iniciarSocket() {
-  const socket = io("http://127.0.0.1:3000", {
+  const socket = io("https://prafoodapi.onrender.com", {
     transports: ["websocket", "polling"], // 🔄 PERMITE FALLBACK: Se o websocket falhar, o polling mantém o canal vivo
     upgrade: true, // 🔄 PERMITE UPGRADE: Tenta subir para websocket assim que estabilizar
     forceNew: false, // Evita recriar instâncias desnecessárias se já houver tentativa ativa
