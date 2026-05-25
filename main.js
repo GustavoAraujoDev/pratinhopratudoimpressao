@@ -54,13 +54,15 @@ function createWindow() {
 }
 
 function iniciarSocket() {
-  const socket = io("https://prafoodapi.onrender.com", {
-    transports: ["websocket"],
-    upgrade: false,
-    forceNew: true,
+  const socket = io("http://127.0.0.1:3000", {
+    transports: ["websocket", "polling"], // 🔄 PERMITE FALLBACK: Se o websocket falhar, o polling mantém o canal vivo
+    upgrade: true, // 🔄 PERMITE UPGRADE: Tenta subir para websocket assim que estabilizar
+    forceNew: false, // Evita recriar instâncias desnecessárias se já houver tentativa ativa
     reconnection: true,
-    reconnectionAttempts: Infinity,
-    reconnectionDelay: 2000,
+    reconnectionAttempts: Infinity, // Tenta reconectar para sempre
+    reconnectionDelay: 1000, // Tempo inicial de espera
+    reconnectionDelayMax: 5000, // Teto máximo de espera entre tentativas (evita flood)
+    timeout: 20000, // Define 20s como limite para considerar queda real
   });
 
   socket.on("connect", () => {
@@ -68,9 +70,30 @@ function iniciarSocket() {
     enviarStatus("online");
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (reason) => {
     registrarLog("Desconectado da nuvem", "erro");
     enviarStatus("offline");
+
+    // Se a queda foi iniciada pelo servidor (ex: restart do backend), força o socket a tentar reconectar manualmente
+    if (reason === "io server disconnect") {
+      socket.connect();
+    }
+  });
+
+  // 🔥 GERENCIADORES GERADOS PELO RECONNECTION AUTOMÁTICO
+  socket.io.on("reconnect_attempt", (attempt) => {
+    registrarLog(
+      `Tentativa de reconexão automática nº ${attempt}...`,
+      "alerta",
+    );
+  });
+
+  socket.io.on("reconnect_failed", () => {
+    registrarLog(
+      "Falha crítica: Ciclo de reconexão esgotado. Forçando reinicialização do canal...",
+      "erro",
+    );
+    socket.connect(); // Força uma reconexão bruta se o motor automático desistir
   });
 
   socket.on("connect_error", (err) => {
@@ -108,8 +131,91 @@ function iniciarSocket() {
       registrarLog(`Falha na impressão do pedido: ${err.message}`, "erro");
     }
   });
-}
 
+  // 🔥 2. NOVO: ESCUTA DA IMPRESSÃO PARCIAL DE MESA
+  socket.on("imprimir-parcial", async (dadosParcial) => {
+    try {
+      registrarLog(
+        `Impressão parcial recebida para a Mesa: ${dadosParcial?.mesaId || "Desconhecida"}`,
+        "info",
+      );
+
+      const printers = await obterImpressoras();
+
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+        if (config?.printerName)
+          printerService.setPrinterName(config.printerName);
+      }
+
+      await printerService.connectToPrinter(printers);
+      registrarLog(
+        `Estado da impressora atualizado. IsMock: ${printerService.isMock}`,
+        "info",
+      );
+
+      // 💡 Verifica se o seu serviço possui um layout exclusivo para parciais.
+      // Se não tiver, ele usa o método de impressão genérico, já que a estrutura de itens é idêntica.
+      if (typeof printerService.imprimirParcial === "function") {
+        await printerService.imprimirParcial(dadosParcial);
+      } else {
+        await printerService.imprimir(dadosParcial);
+      }
+
+      registrarLog(
+        `Parcial da Mesa ${dadosParcial?.mesaId} impressa com sucesso no Agente Local`,
+        "sucesso",
+      );
+    } catch (err) {
+      registrarLog(
+        `Falha na impressão parcial da mesa: ${err.message}`,
+        "erro",
+      );
+    }
+  });
+
+  // 🔥 ESCUTA EXCLUSIVA DO RECIBO DE ABATIMENTO PARCIAL (DINHEIRO RECEBIDO)
+  socket.on("imprimir-recibo-abatimento", async (dadosRecibo) => {
+    // 👈 Mudou o nome do evento
+    try {
+      registrarLog(
+        `Recibo de abatimento recebido para a Mesa: ${dadosRecibo?.mesaId || "Desconhecida"}`,
+        "info",
+      );
+
+      const printers = await obterImpressoras();
+
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+        if (config?.printerName)
+          printerService.setPrinterName(config.printerName);
+      }
+
+      await printerService.connectToPrinter(printers);
+      registrarLog(
+        `Estado da impressora atualizado. IsMock: ${printerService.isMock}`,
+        "info",
+      );
+
+      // Chama o método que gera o layout de recibo de pagamento
+      if (typeof printerService.imprimirReciboAbatimento === "function") {
+        await printerService.imprimirReciboAbatimento(dadosRecibo);
+      } else {
+        await printerService.imprimir(dadosRecibo);
+      }
+
+      registrarLog(
+        `Recibo de abatimento da Mesa ${dadosRecibo?.mesaId} impresso com sucesso!`,
+        "sucesso",
+      );
+    } catch (err) {
+      registrarLog(
+        `Falha na impressão do recibo de abatimento: ${err.message}`,
+        "erro",
+      );
+    }
+  });
+}
 function enviarStatus(status) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.webContents.send("status-mudou", status);
