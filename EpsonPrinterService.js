@@ -424,6 +424,429 @@ class EpsonPrinterService {
       throw err;
     }
   }
+
+  // =========================================================
+  // FORMATAR PARCIAL DA MESA (NOVO)
+  // =========================================================
+  formatarParcial(dados) {
+    const LARGURA_MAX = 38;
+    const linhas = [];
+    const d = dados || {};
+    const p = d.dadosComanda || {}; // Resgata o payload seguro vindo da API
+
+    linhas.push(
+      this._coluna("*** PRATINHO PRATUDO ***", LARGURA_MAX, "center"),
+    );
+    linhas.push(this._coluna("PRATINHO PRATUDO LTDA", LARGURA_MAX, "center"));
+    linhas.push(
+      this._coluna("CNPJ: 57.678.701/0001-00", LARGURA_MAX, "center"),
+    );
+
+    const enderecoEmpresa =
+      "Rua Joaquim José da Silva, 1006, Vila Velha, Fortaleza - CE";
+    linhas.push(...this._ajustarTextoLongo(enderecoEmpresa, LARGURA_MAX, ""));
+
+    linhas.push(
+      this._coluna("Tel/Whats: (85) 99192-4340", LARGURA_MAX, "center"),
+    );
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    // Alerta visual destacado para o cliente saber que é apenas conferência
+    linhas.push(this._coluna("CONFERENCIA DE CONSUMO", LARGURA_MAX, "center"));
+    linhas.push(this._coluna("*** CONTA PARCIAL ***", LARGURA_MAX, "center"));
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    // Identificação direta da Mesa afetada
+    linhas.push(
+      this._coluna(
+        `MESA ATIVA: ${d.mesaId || "Não Informada"}`,
+        LARGURA_MAX,
+        "center",
+      ),
+    );
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    // OPERADOR/ATENDENTE (Auditoria)
+    if (p.userId) {
+      linhas.push(`ATENDENTE ID: ${p.userId}`);
+      linhas.push("-".repeat(LARGURA_MAX));
+    }
+
+    // ITENS CONSUMIDOS ATÉ O MOMENTO
+    linhas.push("ITENS CONSUMIDOS:");
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    const itens = Array.isArray(p.itens) ? p.itens : [];
+    if (itens.length === 0) {
+      linhas.push(this._coluna("(Nenhum item na comanda)", LARGURA_MAX));
+    }
+
+    itens.forEach((item) => {
+      const nomeItem = String(
+        item?.name || item?.nome || "ITEM SEM NOME",
+      ).toUpperCase();
+      const nome = this._coluna(nomeItem, 18);
+      const qtd = this._coluna(
+        `x${item?.quantity || item?.qty || 1}`,
+        4,
+        "right",
+      );
+      const precoNum = Number(item?.unitPrice || item?.preco || 0);
+      const preco = this._coluna(precoNum.toFixed(2), 8, "right");
+      const totalNum = precoNum * Number(item?.quantity || item?.qtd || 1);
+      const total = this._coluna(totalNum.toFixed(2), 8, "right");
+
+      linhas.push(`${nome}${qtd}${preco}${total}`);
+
+      if (item?.extras && item.extras.length > 0) {
+        const textoExtras = item.extras.join(", ");
+        linhas.push(
+          ...this._ajustarTextoLongo(textoExtras, LARGURA_MAX, "  + "),
+        );
+      }
+
+      if (item?.notes && item.notes.trim() !== "") {
+        linhas.push(
+          ...this._ajustarTextoLongo(item.notes, LARGURA_MAX, "  OBS: "),
+        );
+      }
+    });
+
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    // SUB-TOTAL ACUMULADO
+    if (p.pagamento) {
+      const subTotalAcumulado = Number(p.pagamento.total || p.total || 0);
+      linhas.push(
+        this._coluna(
+          `SUB-TOTAL: R$ ${subTotalAcumulado.toFixed(2)}`,
+          LARGURA_MAX,
+          "right",
+        ),
+      );
+    }
+
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    // Mensagem informativa no rodapé
+    linhas.push(
+      this._coluna("* MESA CONTINUA EM ATENDIMENTO *", LARGURA_MAX, "center"),
+    );
+    linhas.push(
+      this._coluna("DOCUMENTO SEM VALOR FISCAL", LARGURA_MAX, "center"),
+    );
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    const dataImpressao = new Date();
+    linhas.push(
+      this._coluna(
+        `Impresso em: ${dataImpressao.toLocaleString("pt-BR")}`,
+        LARGURA_MAX,
+      ),
+    );
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    return linhas;
+  }
+
+  // =========================================================
+  // IMPRIMIR PARCIAL DA MESA (CORRIGIDO)
+  // =========================================================
+  async imprimirParcial(dadosParcial) {
+    try {
+      const linhas = this.formatarParcial(dadosParcial);
+
+      // Se estiver em modo simulado/mock, desvia enviando o array para renderização em tela
+      if (this.isMock || !this.printerName) {
+        console.log(
+          "\n🧪 ===== MOCK IMPRESSÃO PARCIAL (ENVIANDO PRO HTML) =====",
+        );
+        return { success: true, mock: true, linhas: linhas };
+      }
+
+      const tempDir = require("os").tmpdir();
+      const filePath = path.join(
+        tempDir,
+        `parcial-${dadosParcial.mesaId || "mesa"}-${Date.now()}.pdf`,
+      );
+
+      const logoPath = path.join(__dirname, "logo.png");
+      const temLogo = fs.existsSync(logoPath);
+      const espacoLogo = temLogo ? 75 : 0;
+
+      // Mantém a exata consistência matemática de cálculo de altura do seu motor de PDF
+      const alturaCalculada = linhas.length * 12 + espacoLogo + 30;
+
+      const doc = new PDFDocument({
+        margin: 0,
+        size: [226, alturaCalculada],
+        autoFirstPage: false,
+      });
+
+      doc.addPage({ margin: 0, size: [226, alturaCalculada] });
+
+      const stream = fs.createWriteStream(filePath);
+      doc.pipe(stream);
+
+      let inicioTextoY = 2;
+      if (temLogo) {
+        doc.image(logoPath, (226 - 70) / 2, 2, { width: 70 });
+        inicioTextoY = 75;
+      }
+
+      doc.font("Courier-Bold").fontSize(8.5);
+
+      let primeiraLinha = true;
+      linhas.forEach((linha) => {
+        // ✅ CORRIGIDO: Atribuição limpa e segura da string para o PDFKit
+        const linhaLimpa = String(linha || "").replace(/\n/g, "");
+
+        if (primeiraLinha) {
+          doc.text(linhaLimpa, 5, inicioTextoY, { lineGap: 1.5 });
+          primeiraLinha = false;
+        } else {
+          doc.text(linhaLimpa, 5, doc.y, { lineGap: 1.5 });
+        }
+      });
+
+      doc.end();
+
+      await new Promise((resolve, reject) => {
+        stream.on("finish", resolve);
+        stream.on("error", reject);
+      });
+
+      if (process.platform === "darwin") {
+        console.log(
+          `[PRINT_MAC_OS] Sucesso! PDF de parcial da comanda gerado em: ${filePath}`,
+        );
+        return { success: true };
+      }
+
+      console.log(
+        `[PRINT_PARTIAL] Enviando para impressora do Windows: ${this.printerName}`,
+      );
+
+      try {
+        const { print } = require("pdf-to-printer"); // Garante a dependência ativa
+        await print(filePath, {
+          printer: this.printerName,
+          options: ["-print-settings", "noscale,nosplit,monochrome"],
+        });
+      } catch (printError) {
+        console.warn(
+          "[PRINT_WARN] Falha nos parâmetros avançados de parcial. Usando envio limpo...",
+          printError,
+        );
+        const { print } = require("pdf-to-printer");
+        await print(filePath, { printer: this.printerName });
+      }
+
+      console.log(
+        "[PRINT_PARTIAL] Parcial de mesa enviada com sucesso ao spooler!",
+      );
+      return { success: true };
+    } catch (err) {
+      console.error("[PRINT_PARTIAL_ERROR]", err);
+      throw err;
+    }
+  }
+
+  // =========================================================
+  // FORMATAR RECIBO DE ABATIMENTO EXCLUSIVO (NOVO)
+  // =========================================================
+  formatarReciboAbatimento(dados) {
+    const LARGURA_MAX = 38;
+    const linhas = [];
+    const d = dados || {};
+    const p = d.dadosComanda || {}; // Resgata o payload vindo do backend
+
+    linhas.push(
+      this._coluna("*** PRATINHO PRATUDO ***", LARGURA_MAX, "center"),
+    );
+    linhas.push(this._coluna("PRATINHO PRATUDO LTDA", LARGURA_MAX, "center"));
+    linhas.push(
+      this._coluna("CNPJ: 57.678.701/0001-00", LARGURA_MAX, "center"),
+    );
+
+    const enderecoEmpresa =
+      "Rua Joaquim José da Silva, 1006, Vila Velha, Fortaleza - CE";
+    linhas.push(...this._ajustarTextoLongo(enderecoEmpresa, LARGURA_MAX, ""));
+    linhas.push(
+      this._coluna("Tel/Whats: (85) 99192-4340", LARGURA_MAX, "center"),
+    );
+
+    linhas.push("-".repeat(LARGURA_MAX));
+    linhas.push(
+      this._coluna("COMPROVANTE DE PAGAMENTO", LARGURA_MAX, "center"),
+    );
+    linhas.push(
+      this._coluna("--- ABATIMENTO PARCIAL ---", LARGURA_MAX, "center"),
+    );
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    linhas.push(
+      this._coluna(
+        `MESA DE ORIGEM: ${d.mesaId || "Não Informada"}`,
+        LARGURA_MAX,
+      ),
+    );
+    if (p.userId) {
+      linhas.push(this._coluna(`ATENDENTE ID: ${p.userId}`, LARGURA_MAX));
+    }
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    linhas.push("HISTÓRICO DO LANÇAMENTO:");
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    const itens = Array.isArray(p.itens) ? p.itens : [];
+    itens.forEach((item) => {
+      const nomeItem = String(
+        item?.name || item?.nome || "PAGAMENTO PARCIAL",
+      ).toUpperCase();
+      const nome = this._coluna(nomeItem, 20);
+      const qtd = this._coluna(
+        `x${item?.quantity || item?.qty || 1}`,
+        4,
+        "right",
+      );
+
+      const totalNum = Number(item?.total || item?.unitPrice || 0);
+      const total = this._coluna(totalNum.toFixed(2), 14, "right");
+
+      linhas.push(`${nome}${qtd}${total}`);
+    });
+
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    if (p.pagamento) {
+      const valorPago = Number(p.pagamento.total || 0);
+      linhas.push(
+        this._coluna(
+          `FORMA: ${p.pagamento.metodo || "NÃO INFORMADA"}`,
+          LARGURA_MAX,
+        ),
+      );
+      linhas.push(
+        this._coluna(
+          `STATUS: ${p.pagamento.status || "RECEBIDO"}`,
+          LARGURA_MAX,
+        ),
+      );
+      linhas.push("-".repeat(LARGURA_MAX));
+      linhas.push(
+        this._coluna(
+          `VALOR ABATIDO: R$ ${valorPago.toFixed(2)}`,
+          LARGURA_MAX,
+          "right",
+        ),
+      );
+    }
+
+    linhas.push("-".repeat(LARGURA_MAX));
+    linhas.push(
+      this._coluna("* COMPROVANTE DO CLIENTE *", LARGURA_MAX, "center"),
+    );
+    linhas.push(
+      this._coluna("A MESA CONTINUA EM ATENDIMENTO", LARGURA_MAX, "center"),
+    );
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    const dataImpressao = new Date();
+    linhas.push(
+      this._coluna(
+        `Impresso em: ${dataImpressao.toLocaleString("pt-BR")}`,
+        LARGURA_MAX,
+      ),
+    );
+    linhas.push("-".repeat(LARGURA_MAX));
+
+    return linhas;
+  }
+
+  // =========================================================
+  // IMPRIMIR RECIBO DE ABATIMENTO (NOVO)
+  // =========================================================
+  async imprimirReciboAbatimento(dadosRecibo) {
+    try {
+      const linhas = this.formatarReciboAbatimento(dadosRecibo);
+
+      if (this.isMock || !this.printerName) {
+        console.log("\n🧪 ===== MOCK IMPRESSÃO RECIBO ABATIMENTO (HTML) =====");
+        return { success: true, mock: true, linhas: linhas };
+      }
+
+      const tempDir = require("os").tmpdir();
+      const filePath = path.join(
+        tempDir,
+        `recibo-abatimento-${Date.now()}.pdf`,
+      );
+
+      const logoPath = path.join(__dirname, "logo.png");
+      const temLogo = fs.existsSync(logoPath);
+      const espacoLogo = temLogo ? 75 : 0;
+
+      const alturaCalculada = linhas.length * 12 + espacoLogo + 30;
+
+      const doc = new PDFDocument({
+        margin: 0,
+        size: [226, alturaCalculada],
+        autoFirstPage: false,
+      });
+
+      doc.addPage({ margin: 0, size: [226, alturaCalculada] });
+
+      const stream = fs.createWriteStream(filePath);
+      doc.pipe(stream);
+
+      let inicioTextoY = 2;
+      if (temLogo) {
+        doc.image(logoPath, (226 - 70) / 2, 2, { width: 70 });
+        inicioTextoY = 75;
+      }
+
+      doc.font("Courier-Bold").fontSize(8.5);
+
+      let primeiraLinha = true;
+      linhas.forEach((linha) => {
+        const linhaLimpa = String(linha || "").replace(/\n/g, "");
+
+        if (primeiraLinha) {
+          doc.text(linhaLimpa, 5, inicioTextoY, { lineGap: 1.5 });
+          primeiraLinha = false;
+        } else {
+          doc.text(linhaLimpa, 5, doc.y, { lineGap: 1.5 });
+        }
+      });
+
+      doc.end();
+
+      await new Promise((resolve, reject) => {
+        stream.on("finish", resolve);
+        stream.on("error", reject);
+      });
+
+      if (process.platform === "darwin") {
+        console.log(
+          `[PRINT_MAC_OS] Recibo de Abatimento gerado em: ${filePath}`,
+        );
+        return { success: true };
+      }
+
+      await print(filePath, {
+        printer: this.printerName,
+        options: ["-print-settings", "noscale,nosplit,monochrome"],
+      });
+
+      console.log(
+        "[PRINT_RECIBO] Recibo de abatimento enviado com sucesso ao spooler!",
+      );
+      return { success: true };
+    } catch (err) {
+      console.error("[PRINT_RECIBO_ERROR]", err);
+      throw err;
+    }
+  }
 }
 
 module.exports = EpsonPrinterService;
