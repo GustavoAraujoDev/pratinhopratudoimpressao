@@ -255,10 +255,17 @@ class EpsonPrinterService {
         `${p.pagamento.metodo || "Não informado"} (${p.pagamento.status || "PENDENTE"})`,
       );
 
-      if (p.pagamento.trocoPara) {
-        linhas.push(
-          `Troco para: R$ ${Number(p.pagamento.trocoPara).toFixed(2)}`,
-        );
+    // 💰 LOGICA DO TROCO INTEGRADA PARA A IMPRESSÃO IMPRESSA
+      if (p.pagamento.metodo === "CASH" && p.pagamento.trocoPara) {
+        const pagoCom = Number(p.pagamento.trocoPara);
+        const valorTroco = pagoCom - Number(p.pagamento.total || p.total || 0);
+
+        if (valorTroco > 0) {
+          linhas.push(`Pago com: R$ ${pagoCom.toFixed(2)}`);
+          linhas.push(`Troco: R$ ${valorTroco.toFixed(2)}`);
+        } else {
+          linhas.push(`Pago com: Valor exato`);
+        }
       }
 
       if (
@@ -321,12 +328,6 @@ class EpsonPrinterService {
     return this.imprimir(pedidoTeste);
   }
 
-  // =========================================================
-  // IMPRIMIR (TODO EM NEGRITO COURIER-BOLD)
-  // =========================================================
-  // =========================================================
-  // IMPRIMIR (CORRIGIDO: ELIMINA ESPAÇO EM BRANCO NO COMEÇO)
-  // =========================================================
   // =========================================================
   // IMPRIMIR (CORRIGIDO: FORÇA PÁGINA ÚNICA SEM QUEBRA)
   // =========================================================
