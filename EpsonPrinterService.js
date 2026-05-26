@@ -136,11 +136,11 @@ class EpsonPrinterService {
     return linhas;
   }
 
- // =========================================================
+  // =========================================================
   // FORMATAR PEDIDO (ENTREGA ABAIXO DO CLIENTE)
   // =========================================================
   formatarPedido(pedido) {
-    const LARGURA_MAX = 38;
+    const LARGURA_MAX = 32;
     const linhas = [];
     const p = pedido || {};
 
@@ -255,7 +255,7 @@ class EpsonPrinterService {
         `${p.pagamento.metodo || "Não informado"} (${p.pagamento.status || "PENDENTE"})`,
       );
 
-    // 💰 LOGICA DO TROCO INTEGRADA PARA A IMPRESSÃO IMPRESSA
+      // 💰 LOGICA DO TROCO INTEGRADA PARA A IMPRESSÃO IMPRESSA
       if (p.pagamento.metodo === "CASH" && p.pagamento.trocoPara) {
         const pagoCom = Number(p.pagamento.trocoPara);
         const valorTroco = pagoCom - Number(p.pagamento.total || p.total || 0);
@@ -346,16 +346,17 @@ class EpsonPrinterService {
       const logoPath = path.join(__dirname, "logo.png");
       const temLogo = fs.existsSync(logoPath);
 
-      const espacoLogo = temLogo ? 75 : 0;
+      // 🛠️ CORREÇÃO 1: Aumentar o espaço da logo se ela existir (com fonte 11 precisa de mais respiro)
+      const espacoLogo = temLogo ? 85 : 0;
 
-      // 🔥 CORREÇÃO DA ALTURA: Aumentamos ligeiramente o multiplicador por linha (de 10 para 12)
-      // e adicionamos uma margem de segurança de 30px no final para o papel respirar antes do corte.
-      const alturaCalculada = linhas.length * 12 + espacoLogo + 30;
+      // 🛠️ CORREÇÃO 2: Mudar o multiplicador de 12 para 16 ou 17 (essencial para a fonte 11)
+      // E aumentamos a margem de segurança no fim de 30 para 50px para o papel não cortar o texto.
+      const alturaCalculada = linhas.length * 17 + espacoLogo + 50;
 
       const doc = new PDFDocument({
         margin: 0,
         size: [226, alturaCalculada],
-        autoFirstPage: false, // 🔥 IMPEDE O PDFKIT DE CRIAR PÁGINAS AUTOMÁTICAS
+        autoFirstPage: false, // IMPEDE O PDFKIT DE CRIAR PÁGINAS AUTOMÁTICAS
       });
 
       // Criamos a página manualmente vinculada ao tamanho exato calculado
@@ -364,25 +365,30 @@ class EpsonPrinterService {
       const stream = fs.createWriteStream(filePath);
       doc.pipe(stream);
 
+      // Forçar o cursor no topo absoluto antes de desenhar
+      doc.y = 0;
+
       // 1. RENDERIZAR LOGO (Se o arquivo existir)
-      let inicioTextoY = 2;
+      let inicioTextoY = 0;
       if (temLogo) {
-        doc.image(logoPath, (226 - 70) / 2, 2, { width: 70 });
-        inicioTextoY = 75; // Garante que o texto comece bem abaixo da logo
+        doc.image(logoPath, (226 - 70) / 2, 0, { width: 70 });
+        inicioTextoY = 85; // Garante que o texto comece bem abaixo da logo
       }
 
-      // 2. RENDERIZAR TEXTOS DO CUPOM (Tudo em Courier-Bold)
-      doc.font("Courier-Bold").fontSize(8.5);
+      // 2. RENDERIZAR TEXTOS DO CUPOM (Agora com tamanho 11)
+      doc.font("Courier-Bold").fontSize(11); // 🛠️ Sua fonte desejada
 
       let primeiraLinha = true;
       linhas.forEach((linha) => {
         const linhaLimpa = linha.replace(/\n/g, "");
 
         if (primeiraLinha) {
-          doc.text(linhaLimpa, 5, inicioTextoY, { lineGap: 1.5 });
+          const yInicial = temLogo ? inicioTextoY : 0;
+          // 🛠️ CORREÇÃO 3: Diminuir o lineGap para 1.0 para o texto não ficar muito espaçado
+          doc.text(linhaLimpa, 5, yInicial, { lineGap: 1.0 });
           primeiraLinha = false;
         } else {
-          doc.text(linhaLimpa, 5, doc.y, { lineGap: 1.5 });
+          doc.text(linhaLimpa, 5, doc.y, { lineGap: 1.0 });
         }
       });
 
@@ -405,10 +411,10 @@ class EpsonPrinterService {
       );
 
       try {
-        // "nosplit" diz ao Windows: "Não quebre isso em duas páginas de jeito nenhum!"
+        // 🛠️ MODIFICADO AQUI: Trocado 'noscale,nosplit' por 'fit' para alinhar ao topo do spooler gráfico
         await print(filePath, {
           printer: this.printerName,
-          options: ["-print-settings", "noscale,nosplit,monochrome"],
+          options: ["-print-settings", "fit,monochrome"],
         });
       } catch (printError) {
         console.warn(
@@ -430,7 +436,7 @@ class EpsonPrinterService {
   // FORMATAR PARCIAL DA MESA (NOVO)
   // =========================================================
   formatarParcial(dados) {
-    const LARGURA_MAX = 38;
+    const LARGURA_MAX = 32;
     const linhas = [];
     const d = dados || {};
     const p = d.dadosComanda || {}; // Resgata o payload seguro vindo da API
@@ -573,40 +579,50 @@ class EpsonPrinterService {
 
       const logoPath = path.join(__dirname, "logo.png");
       const temLogo = fs.existsSync(logoPath);
-      const espacoLogo = temLogo ? 75 : 0;
 
-      // Mantém a exata consistência matemática de cálculo de altura do seu motor de PDF
-      const alturaCalculada = linhas.length * 12 + espacoLogo + 30;
+      // 🛠️ CORREÇÃO 1: Aumentar o espaço da logo se ela existir (com fonte 11 precisa de mais respiro)
+      const espacoLogo = temLogo ? 85 : 0;
+
+      // 🛠️ CORREÇÃO 2: Mudar o multiplicador de 12 para 16 ou 17 (essencial para a fonte 11)
+      // E aumentamos a margem de segurança no fim de 30 para 50px para o papel não cortar o texto.
+      const alturaCalculada = linhas.length * 17 + espacoLogo + 50;
 
       const doc = new PDFDocument({
         margin: 0,
         size: [226, alturaCalculada],
-        autoFirstPage: false,
+        autoFirstPage: false, // IMPEDE O PDFKIT DE CRIAR PÁGINAS AUTOMÁTICAS
       });
 
+      // Criamos a página manualmente vinculada ao tamanho exato calculado
       doc.addPage({ margin: 0, size: [226, alturaCalculada] });
 
       const stream = fs.createWriteStream(filePath);
       doc.pipe(stream);
 
-      let inicioTextoY = 2;
+      // Forçar o cursor no topo absoluto antes de desenhar
+      doc.y = 0;
+
+      // 1. RENDERIZAR LOGO (Se o arquivo existir)
+      let inicioTextoY = 0;
       if (temLogo) {
-        doc.image(logoPath, (226 - 70) / 2, 2, { width: 70 });
-        inicioTextoY = 75;
+        doc.image(logoPath, (226 - 70) / 2, 0, { width: 70 });
+        inicioTextoY = 85; // Garante que o texto comece bem abaixo da logo
       }
 
-      doc.font("Courier-Bold").fontSize(8.5);
+      // 2. RENDERIZAR TEXTOS DO CUPOM (Agora com tamanho 11)
+      doc.font("Courier-Bold").fontSize(11); // 🛠️ Sua fonte desejada
 
       let primeiraLinha = true;
       linhas.forEach((linha) => {
-        // ✅ CORRIGIDO: Atribuição limpa e segura da string para o PDFKit
-        const linhaLimpa = String(linha || "").replace(/\n/g, "");
+        const linhaLimpa = linha.replace(/\n/g, "");
 
         if (primeiraLinha) {
-          doc.text(linhaLimpa, 5, inicioTextoY, { lineGap: 1.5 });
+          const yInicial = temLogo ? inicioTextoY : 0;
+          // 🛠️ CORREÇÃO 3: Diminuir o lineGap para 1.0 para o texto não ficar muito espaçado
+          doc.text(linhaLimpa, 5, yInicial, { lineGap: 1.0 });
           primeiraLinha = false;
         } else {
-          doc.text(linhaLimpa, 5, doc.y, { lineGap: 1.5 });
+          doc.text(linhaLimpa, 5, doc.y, { lineGap: 1.0 });
         }
       });
 
@@ -630,9 +646,10 @@ class EpsonPrinterService {
 
       try {
         const { print } = require("pdf-to-printer"); // Garante a dependência ativa
+        // 🛠️ MODIFICADO AQUI: Trocado 'noscale,nosplit' por 'fit' para alinhar ao topo do spooler gráfico
         await print(filePath, {
           printer: this.printerName,
-          options: ["-print-settings", "noscale,nosplit,monochrome"],
+          options: ["-print-settings", "fit,monochrome"],
         });
       } catch (printError) {
         console.warn(
@@ -657,7 +674,7 @@ class EpsonPrinterService {
   // FORMATAR RECIBO DE ABATIMENTO EXCLUSIVO (NOVO)
   // =========================================================
   formatarReciboAbatimento(dados) {
-    const LARGURA_MAX = 38;
+    const LARGURA_MAX = 32;
     const linhas = [];
     const d = dados || {};
     const p = d.dadosComanda || {}; // Resgata o payload vindo do backend
@@ -785,38 +802,50 @@ class EpsonPrinterService {
 
       const logoPath = path.join(__dirname, "logo.png");
       const temLogo = fs.existsSync(logoPath);
-      const espacoLogo = temLogo ? 75 : 0;
 
-      const alturaCalculada = linhas.length * 12 + espacoLogo + 30;
+      // 🛠️ CORREÇÃO 1: Aumentar o espaço da logo se ela existir (com fonte 11 precisa de mais respiro)
+      const espacoLogo = temLogo ? 85 : 0;
+
+      // 🛠️ CORREÇÃO 2: Mudar o multiplicador de 12 para 16 ou 17 (essencial para a fonte 11)
+      // E aumentamos a margem de segurança no fim de 30 para 50px para o papel não cortar o texto.
+      const alturaCalculada = linhas.length * 17 + espacoLogo + 50;
 
       const doc = new PDFDocument({
         margin: 0,
         size: [226, alturaCalculada],
-        autoFirstPage: false,
+        autoFirstPage: false, // IMPEDE O PDFKIT DE CRIAR PÁGINAS AUTOMÁTICAS
       });
 
+      // Criamos a página manualmente vinculada ao tamanho exato calculado
       doc.addPage({ margin: 0, size: [226, alturaCalculada] });
 
       const stream = fs.createWriteStream(filePath);
       doc.pipe(stream);
 
-      let inicioTextoY = 2;
+      // Forçar o cursor no topo absoluto antes de desenhar
+      doc.y = 0;
+
+      // 1. RENDERIZAR LOGO (Se o arquivo existir)
+      let inicioTextoY = 0;
       if (temLogo) {
-        doc.image(logoPath, (226 - 70) / 2, 2, { width: 70 });
-        inicioTextoY = 75;
+        doc.image(logoPath, (226 - 70) / 2, 0, { width: 70 });
+        inicioTextoY = 85; // Garante que o texto comece bem abaixo da logo
       }
 
-      doc.font("Courier-Bold").fontSize(8.5);
+      // 2. RENDERIZAR TEXTOS DO CUPOM (Agora com tamanho 11)
+      doc.font("Courier-Bold").fontSize(11); // 🛠️ Sua fonte desejada
 
       let primeiraLinha = true;
       linhas.forEach((linha) => {
-        const linhaLimpa = String(linha || "").replace(/\n/g, "");
+        const linhaLimpa = linha.replace(/\n/g, "");
 
         if (primeiraLinha) {
-          doc.text(linhaLimpa, 5, inicioTextoY, { lineGap: 1.5 });
+          const yInicial = temLogo ? inicioTextoY : 0;
+          // 🛠️ CORREÇÃO 3: Diminuir o lineGap para 1.0 para o texto não ficar muito espaçado
+          doc.text(linhaLimpa, 5, yInicial, { lineGap: 1.0 });
           primeiraLinha = false;
         } else {
-          doc.text(linhaLimpa, 5, doc.y, { lineGap: 1.5 });
+          doc.text(linhaLimpa, 5, doc.y, { lineGap: 1.0 });
         }
       });
 
@@ -834,9 +863,10 @@ class EpsonPrinterService {
         return { success: true };
       }
 
+      // 🛠️ MODIFICADO AQUI: Trocado 'noscale,nosplit' por 'fit' para alinhar ao topo do spooler gráfico
       await print(filePath, {
         printer: this.printerName,
-        options: ["-print-settings", "noscale,nosplit,monochrome"],
+        options: ["-print-settings", "fit,monochrome"],
       });
 
       console.log(
