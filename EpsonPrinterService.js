@@ -282,6 +282,17 @@ class EpsonPrinterService {
         );
       }
 
+      // 💳 ADICIONADO: Lógica local para imprimir a Taxa do Cartão discriminada
+      if (p.pagamento.metodo === "CREDIT_CARD" || p.pagamento.metodo === "DEBIT_CARD") {
+        linhas.push(
+          this._coluna(
+            `TAXA CARTÃO: R$ 1.00`,
+            LARGURA_MAX,
+            "right",
+          ),
+        );
+      }
+
       linhas.push("-".repeat(LARGURA_MAX));
 
       const totalPedido = Number(p.pagamento.total || p.total || 0);
