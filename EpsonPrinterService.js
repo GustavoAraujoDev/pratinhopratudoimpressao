@@ -372,6 +372,9 @@ const doc = new PDFDocument({
   autoFirstPage: false,
 });
 
+      // 🔥 COLOCADO DE VOLTA: Criação da stream que havia sumido no seu código
+      const stream = fs.createWriteStream(filePath);
+
 doc.addPage({ margin: 0, size: [226, alturaCalculada] });
 doc.pipe(stream);
 doc.y = 0;
@@ -604,6 +607,9 @@ const doc = new PDFDocument({
   autoFirstPage: false,
 });
 
+      // 🔥 COLOCADO DE VOLTA: Criação da stream que havia sumido no seu código
+      const stream = fs.createWriteStream(filePath);
+
 doc.addPage({ margin: 0, size: [226, alturaCalculada] });
 doc.pipe(stream);
 doc.y = 0;
@@ -825,6 +831,9 @@ const doc = new PDFDocument({
   size: [226, alturaCalculada],
   autoFirstPage: false,
 });
+
+      // 🔥 COLOCADO DE VOLTA: Criação da stream que havia sumido no seu código
+      const stream = fs.createWriteStream(filePath);
 
 doc.addPage({ margin: 0, size: [226, alturaCalculada] });
 doc.pipe(stream);
