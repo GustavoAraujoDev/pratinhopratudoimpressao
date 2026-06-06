@@ -283,7 +283,7 @@ class EpsonPrinterService {
       }
 
       // 💳 ADICIONADO: Lógica local para imprimir a Taxa do Cartão discriminada
-      if (p.pagamento.metodo === "CREDIT_CARD" || p.pagamento.metodo === "DEBIT_CARD") {
+      if (p.pagamento.metodo === "CARTAO_CREDITO" || p.pagamento.metodo === "CARTAO_DEBITO") {
         linhas.push(
           this._coluna(
             `TAXA CARTÃO: R$ 1.00`,
