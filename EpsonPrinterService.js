@@ -256,7 +256,7 @@ class EpsonPrinterService {
       );
 
       // 💰 LOGICA DO TROCO INTEGRADA PARA A IMPRESSÃO IMPRESSA
-      if (p.pagamento.metodo === "CASH" && p.pagamento.trocoPara) {
+      if (p.pagamento.metodo === "DINHEIRO" && p.pagamento.trocoPara) {
         const pagoCom = Number(p.pagamento.trocoPara);
         const valorTroco = pagoCom - Number(p.pagamento.total || p.total || 0);
 
