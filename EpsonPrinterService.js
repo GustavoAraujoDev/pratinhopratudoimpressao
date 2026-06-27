@@ -183,7 +183,7 @@ class EpsonPrinterService {
     }
     linhas.push("-".repeat(LARGURA_MAX));
 
-    // 🔥 MOVIMENTADO: Bloco de Entrega com Endereço agora fica logo abaixo do Cliente
+    // Bloco de Entrega com Endereço logo abaixo do Cliente
     if (p.entrega) {
       linhas.push("ENTREGA:");
       if (p.entrega.tipo === "DELIVERY") {
@@ -283,10 +283,28 @@ class EpsonPrinterService {
       }
 
       // 💳 ADICIONADO: Lógica local para imprimir a Taxa do Cartão discriminada
-      if (p.pagamento.metodo === "CARTAO_CREDITO" || p.pagamento.metodo === "CARTAO_DEBITO") {
+      if (
+        p.pagamento.metodo === "CARTAO_CREDITO" ||
+        p.pagamento.metodo === "CARTAO_DEBITO"
+      ) {
+        linhas.push(this._coluna(`TAXA CARTÃO: R$ 1.00`, LARGURA_MAX, "right"));
+      }
+
+      // 🔥 NOVO: Bloco de Desconto e Cupom integrado para a Impressão
+      const nomeCupom = p.pagamento?.cupom || p.cupom;
+      const valorDesconto = Number(
+        p.pagamento?.descontoCupom ||
+          p.pagamento?.desconto ||
+          p.descontoCupom ||
+          p.desconto ||
+          0,
+      );
+
+      if (nomeCupom || valorDesconto > 0) {
+        const strCupom = nomeCupom ? ` (${nomeCupom})` : "";
         linhas.push(
           this._coluna(
-            `TAXA CARTÃO: R$ 1.00`,
+            `DESCONTO${strCupom}: -R$ ${valorDesconto.toFixed(2)}`,
             LARGURA_MAX,
             "right",
           ),
@@ -357,38 +375,37 @@ class EpsonPrinterService {
       const logoPath = path.join(__dirname, "logo.png");
       const temLogo = fs.existsSync(logoPath);
 
-     const larguraLogo = 110;  // Aumentado de 70 para 110 (Tamanho ideal)
-const alturaLogo = 115;   // Espaço vertical seguro reservado para a logo + respiro
+      // 🛠️ CORREÇÃO 1: Aumentar o espaço da logo se ela existir (com fonte 11 precisa de mais respiro)
+      const espacoLogo = temLogo ? 85 : 0;
 
-// 🛠️ CORREÇÃO 1: O espaço da logo agora é dinâmico com o novo tamanho
-const espacoLogo = temLogo ? alturaLogo : 0;
+      // 🛠️ CORREÇÃO 2: Mudar o multiplicador de 12 para 16 ou 17 (essencial para a fonte 11)
+      // E aumentamos a margem de segurança no fim de 30 para 50px para o papel não cortar o texto.
+      const alturaCalculada = linhas.length * 17 + espacoLogo + 50;
 
-// 🛠️ CORREÇÃO 2: Multiplicador 17 para fonte 11 + margem de segurança de 50px no fim
-const alturaCalculada = linhas.length * 17 + espacoLogo + 50;
+      const doc = new PDFDocument({
+        margin: 0,
+        size: [226, alturaCalculada],
+        autoFirstPage: false, // IMPEDE O PDFKIT DE CRIAR PÁGINAS AUTOMÁTICAS
+      });
 
-const doc = new PDFDocument({
-  margin: 0,
-  size: [226, alturaCalculada],
-  autoFirstPage: false,
-});
+      // Criamos a página manualmente vinculada ao tamanho exato calculado
+      doc.addPage({ margin: 0, size: [226, alturaCalculada] });
 
-      // 🔥 COLOCADO DE VOLTA: Criação da stream que havia sumido no seu código
       const stream = fs.createWriteStream(filePath);
+      doc.pipe(stream);
 
-doc.addPage({ margin: 0, size: [226, alturaCalculada] });
-doc.pipe(stream);
-doc.y = 0;
+      // Forçar o cursor no topo absoluto antes de desenhar
+      doc.y = 0;
 
-// 1. RENDERIZAR LOGO MAIOR
-let inicioTextoY = 0;
-if (temLogo) {
-  // Centraliza o cupom (226 de largura total) usando a nova largura de 110
-  doc.image(logoPath, (226 - larguraLogo) / 2, 5, { width: larguraLogo });
-  inicioTextoY = alturaLogo; // Garante que o texto comece abaixo da logo
-}
+      // 1. RENDERIZAR LOGO (Se o arquivo existir)
+      let inicioTextoY = 0;
+      if (temLogo) {
+        doc.image(logoPath, (226 - 70) / 2, 0, { width: 70 });
+        inicioTextoY = 85; // Garante que o texto comece bem abaixo da logo
+      }
 
-// 2. RENDERIZAR TEXTOS DO CUPOM (Mantém seu tamanho 11)
-doc.font("Courier-Bold").fontSize(11);
+      // 2. RENDERIZAR TEXTOS DO CUPOM (Agora com tamanho 11)
+      doc.font("Courier-Bold").fontSize(11); // 🛠️ Sua fonte desejada
 
       let primeiraLinha = true;
       linhas.forEach((linha) => {
@@ -592,39 +609,38 @@ doc.font("Courier-Bold").fontSize(11);
       const logoPath = path.join(__dirname, "logo.png");
       const temLogo = fs.existsSync(logoPath);
 
-     const larguraLogo = 110;  // Aumentado de 70 para 110 (Tamanho ideal)
-const alturaLogo = 115;   // Espaço vertical seguro reservado para a logo + respiro
+      // 🛠️ CORREÇÃO 1: Aumentar o espaço da logo se ela existir (com fonte 11 precisa de mais respiro)
+      const espacoLogo = temLogo ? 85 : 0;
 
-// 🛠️ CORREÇÃO 1: O espaço da logo agora é dinâmico com o novo tamanho
-const espacoLogo = temLogo ? alturaLogo : 0;
+      // 🛠️ CORREÇÃO 2: Mudar o multiplicador de 12 para 16 ou 17 (essencial para a fonte 11)
+      // E aumentamos a margem de segurança no fim de 30 para 50px para o papel não cortar o texto.
+      const alturaCalculada = linhas.length * 17 + espacoLogo + 50;
 
-// 🛠️ CORREÇÃO 2: Multiplicador 17 para fonte 11 + margem de segurança de 50px no fim
-const alturaCalculada = linhas.length * 17 + espacoLogo + 50;
+      const doc = new PDFDocument({
+        margin: 0,
+        size: [226, alturaCalculada],
+        autoFirstPage: false, // IMPEDE O PDFKIT DE CRIAR PÁGINAS AUTOMÁTICAS
+      });
 
-const doc = new PDFDocument({
-  margin: 0,
-  size: [226, alturaCalculada],
-  autoFirstPage: false,
-});
+      // Criamos a página manualmente vinculada ao tamanho exato calculado
+      doc.addPage({ margin: 0, size: [226, alturaCalculada] });
 
-      // 🔥 COLOCADO DE VOLTA: Criação da stream que havia sumido no seu código
       const stream = fs.createWriteStream(filePath);
+      doc.pipe(stream);
 
-doc.addPage({ margin: 0, size: [226, alturaCalculada] });
-doc.pipe(stream);
-doc.y = 0;
+      // Forçar o cursor no topo absoluto antes de desenhar
+      doc.y = 0;
 
-// 1. RENDERIZAR LOGO MAIOR
-let inicioTextoY = 0;
-if (temLogo) {
-  // Centraliza o cupom (226 de largura total) usando a nova largura de 110
-  doc.image(logoPath, (226 - larguraLogo) / 2, 5, { width: larguraLogo });
-  inicioTextoY = alturaLogo; // Garante que o texto comece abaixo da logo
-}
+      // 1. RENDERIZAR LOGO (Se o arquivo existir)
+      let inicioTextoY = 0;
+      if (temLogo) {
+        doc.image(logoPath, (226 - 70) / 2, 0, { width: 70 });
+        inicioTextoY = 85; // Garante que o texto comece bem abaixo da logo
+      }
 
-// 2. RENDERIZAR TEXTOS DO CUPOM (Mantém seu tamanho 11)
-doc.font("Courier-Bold").fontSize(11);
-      
+      // 2. RENDERIZAR TEXTOS DO CUPOM (Agora com tamanho 11)
+      doc.font("Courier-Bold").fontSize(11); // 🛠️ Sua fonte desejada
+
       let primeiraLinha = true;
       linhas.forEach((linha) => {
         const linhaLimpa = linha.replace(/\n/g, "");
@@ -817,38 +833,36 @@ doc.font("Courier-Bold").fontSize(11);
       const temLogo = fs.existsSync(logoPath);
 
       // 🛠️ CORREÇÃO 1: Aumentar o espaço da logo se ela existir (com fonte 11 precisa de mais respiro)
-      const larguraLogo = 110;  // Aumentado de 70 para 110 (Tamanho ideal)
-const alturaLogo = 115;   // Espaço vertical seguro reservado para a logo + respiro
+      const espacoLogo = temLogo ? 85 : 0;
 
-// 🛠️ CORREÇÃO 1: O espaço da logo agora é dinâmico com o novo tamanho
-const espacoLogo = temLogo ? alturaLogo : 0;
+      // 🛠️ CORREÇÃO 2: Mudar o multiplicador de 12 para 16 ou 17 (essencial para a fonte 11)
+      // E aumentamos a margem de segurança no fim de 30 para 50px para o papel não cortar o texto.
+      const alturaCalculada = linhas.length * 17 + espacoLogo + 50;
 
-// 🛠️ CORREÇÃO 2: Multiplicador 17 para fonte 11 + margem de segurança de 50px no fim
-const alturaCalculada = linhas.length * 17 + espacoLogo + 50;
+      const doc = new PDFDocument({
+        margin: 0,
+        size: [226, alturaCalculada],
+        autoFirstPage: false, // IMPEDE O PDFKIT DE CRIAR PÁGINAS AUTOMÁTICAS
+      });
 
-const doc = new PDFDocument({
-  margin: 0,
-  size: [226, alturaCalculada],
-  autoFirstPage: false,
-});
+      // Criamos a página manualmente vinculada ao tamanho exato calculado
+      doc.addPage({ margin: 0, size: [226, alturaCalculada] });
 
-      // 🔥 COLOCADO DE VOLTA: Criação da stream que havia sumido no seu código
       const stream = fs.createWriteStream(filePath);
+      doc.pipe(stream);
 
-doc.addPage({ margin: 0, size: [226, alturaCalculada] });
-doc.pipe(stream);
-doc.y = 0;
+      // Forçar o cursor no topo absoluto antes de desenhar
+      doc.y = 0;
 
-// 1. RENDERIZAR LOGO MAIOR
-let inicioTextoY = 0;
-if (temLogo) {
-  // Centraliza o cupom (226 de largura total) usando a nova largura de 110
-  doc.image(logoPath, (226 - larguraLogo) / 2, 5, { width: larguraLogo });
-  inicioTextoY = alturaLogo; // Garante que o texto comece abaixo da logo
-}
+      // 1. RENDERIZAR LOGO (Se o arquivo existir)
+      let inicioTextoY = 0;
+      if (temLogo) {
+        doc.image(logoPath, (226 - 70) / 2, 0, { width: 70 });
+        inicioTextoY = 85; // Garante que o texto comece bem abaixo da logo
+      }
 
-// 2. RENDERIZAR TEXTOS DO CUPOM (Mantém seu tamanho 11)
-doc.font("Courier-Bold").fontSize(11);
+      // 2. RENDERIZAR TEXTOS DO CUPOM (Agora com tamanho 11)
+      doc.font("Courier-Bold").fontSize(11); // 🛠️ Sua fonte desejada
 
       let primeiraLinha = true;
       linhas.forEach((linha) => {
